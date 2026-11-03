@@ -84,7 +84,7 @@ namespace DubboNet.Clients.RegistryClient
                 .Select(pair => Uri.EscapeDataString(pair.Key) + "=" + Uri.EscapeDataString(pair.Value)));
 
         public string ZooKeeperPath => Root.TrimEnd('/') + "/" + Uri.EscapeDataString(Service)
-            + "/consumers/" + Uri.EscapeDataString(ConsumerUrl);
+            + ZooKeeperRegistryPaths.ConsumersDirectory + Uri.EscapeDataString(ConsumerUrl);
 
         public string NacosServiceName => string.Join(":", "consumers", Service, Version, Group);
     }

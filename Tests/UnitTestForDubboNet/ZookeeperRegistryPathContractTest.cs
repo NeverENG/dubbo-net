@@ -21,7 +21,7 @@ using DubboNet.Clients.RegistryClient;
 
 namespace UnitTestForDubboNet
 {
-    public class ZookeeperRegistryPathContractTest
+    public class ZooKeeperRegistryPathContractTest
     {
         [Theory]
         [InlineData(null, "/dubbo/", "/dubbo")]
