@@ -81,6 +81,44 @@ public class Hessian2TagContractTest
         Assert.Equal(expected, Assert.IsType<long>(reader.ReadValue()));
     }
 
+    [Theory]
+    [InlineData("30", 0)]
+    [InlineData("31", 256)]
+    [InlineData("33", 768)]
+    public void CompactStringLengthIncludesTagHighByte(string tagHex, int length)
+    {
+        byte[] wire = Convert.FromHexString(tagHex)
+            .Concat(new byte[] { 0 })
+            .Concat(Enumerable.Repeat((byte)'a', length))
+            .ToArray();
+        var reader = new DubboHessian2Reader(wire);
+        Assert.Equal(new string('a', length), reader.ReadValue());
+    }
+
+    [Theory]
+    [InlineData("34", 0)]
+    [InlineData("35", 256)]
+    [InlineData("37", 768)]
+    public void CompactBinaryLengthIncludesTagHighByte(string tagHex, int length)
+    {
+        byte[] payload = Enumerable.Repeat((byte)0xab, length).ToArray();
+        byte[] wire = Convert.FromHexString(tagHex)
+            .Concat(new byte[] { 0 })
+            .Concat(payload)
+            .ToArray();
+        var reader = new DubboHessian2Reader(wire);
+        Assert.Equal(payload, Assert.IsType<byte[]>(reader.ReadValue()));
+    }
+
+    [Theory]
+    [InlineData("31")]
+    [InlineData("35")]
+    public void CompactLengthMissingLowByteStillThrowsEndOfStream(string tagHex)
+    {
+        var reader = new DubboHessian2Reader(Convert.FromHexString(tagHex));
+        Assert.Throws<EndOfStreamException>(() => reader.ReadValue());
+    }
+
     [Fact]
     public void AdjacentBooleanTagIsNotAList()
     {
