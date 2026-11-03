@@ -284,6 +284,23 @@ namespace DubboNet.DubboService.Native
             return typeName;
         }
 
+        // The tag supplies a signed high part relative to the format-specific base;
+        // the following byte(s) fill in the low part of the value or length.
+        private int ReadCompactTwoByte(byte tag, byte tagBase)
+        {
+            int high = tag - tagBase;
+            int low = ReadByte();
+            return (high << 8) + low;
+        }
+
+        private int ReadCompactThreeByte(byte tag, byte tagBase)
+        {
+            int high = tag - tagBase;
+            int middle = ReadByte();
+            int low = ReadByte();
+            return (high << 16) + (middle << 8) + low;
+        }
+
         private int ReadInt(byte tag)
         {
             if (tag >= Hessian2Tags.CompactIntMin && tag <= Hessian2Tags.CompactIntMax)
@@ -292,11 +309,11 @@ namespace DubboNet.DubboService.Native
             }
             if (tag >= Hessian2Tags.CompactIntTwoByteMin && tag <= Hessian2Tags.CompactIntTwoByteMax)
             {
-                return ((tag - Hessian2Tags.CompactIntTwoByteBase) << 8) + ReadByte();
+                return ReadCompactTwoByte(tag, Hessian2Tags.CompactIntTwoByteBase);
             }
             if (tag >= Hessian2Tags.CompactIntThreeByteMin && tag <= Hessian2Tags.CompactIntThreeByteMax)
             {
-                return ((tag - Hessian2Tags.CompactIntThreeByteBase) << 16) + (ReadByte() << 8) + ReadByte();
+                return ReadCompactThreeByte(tag, Hessian2Tags.CompactIntThreeByteBase);
             }
             if (tag == Hessian2Tags.Int)
             {
@@ -313,11 +330,11 @@ namespace DubboNet.DubboService.Native
             }
             if (tag >= Hessian2Tags.CompactLongTwoByteMin)
             {
-                return ((tag - Hessian2Tags.CompactLongTwoByteBase) << 8) + ReadByte();
+                return ReadCompactTwoByte(tag, Hessian2Tags.CompactLongTwoByteBase);
             }
             if (tag >= Hessian2Tags.CompactLongThreeByteMin && tag <= Hessian2Tags.CompactLongThreeByteMax)
             {
-                return ((long)(tag - Hessian2Tags.CompactLongThreeByteBase) << 16) + (ReadByte() << 8) + ReadByte();
+                return ReadCompactThreeByte(tag, Hessian2Tags.CompactLongThreeByteBase);
             }
             if (tag == Hessian2Tags.LongAsInt)
             {
@@ -365,7 +382,7 @@ namespace DubboNet.DubboService.Native
             if (tag == Hessian2Tags.Null) last = null;
             else if (tag <= Hessian2Tags.ShortStringMax) last = ReadUtf8Chars(tag);
             else if (tag >= Hessian2Tags.CompactStringMin && tag <= Hessian2Tags.CompactStringMax)
-                last = ReadUtf8Chars(((tag - Hessian2Tags.CompactStringMin) << 8) + ReadByte());
+                last = ReadUtf8Chars(ReadCompactTwoByte(tag, Hessian2Tags.CompactStringMin));
             else if (tag == Hessian2Tags.String) last = ReadUtf8Chars(ReadUInt16());
             else throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not a string.");
             return chunks == null ? last : chunks.Append(last).ToString();
@@ -461,7 +478,7 @@ namespace DubboNet.DubboService.Native
             }
             if (tag >= Hessian2Tags.CompactBinaryMin && tag <= Hessian2Tags.CompactBinaryMax)
             {
-                return ((tag - Hessian2Tags.CompactBinaryMin) << 8) + ReadByte();
+                return ReadCompactTwoByte(tag, Hessian2Tags.CompactBinaryMin);
             }
             if (tag == Hessian2Tags.Binary)
             {
