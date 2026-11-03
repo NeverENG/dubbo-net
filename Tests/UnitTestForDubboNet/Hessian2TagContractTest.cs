@@ -70,6 +70,7 @@ public class Hessian2TagContractTest
     [InlineData("D8", -8L)]
     [InlineData("EF", 15L)]
     [InlineData("F000", -2048L)]
+    [InlineData("FF00", 1792L)] // last two-byte long tag
     [InlineData("FFFF", 2047L)]
     [InlineData("380000", -262144L)]
     [InlineData("3FFFFF", 262143L)]

@@ -105,6 +105,34 @@ public class Hessian2ByteCursorTest
     }
 
     [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    public void PartialFixedWidthReadLeavesExistingBytesUnread(int width)
+    {
+        // Consume one byte first so a failed read cannot silently reset the cursor.
+        byte[] wire = new byte[] { 0xaa }
+            .Concat(Enumerable.Range(1, width - 1).Select(value => (byte)value))
+            .ToArray();
+        var input = new Hessian2ByteCursor(wire);
+        Assert.Equal(0xaa, input.ReadByte());
+        int remaining = width - 1;
+        Action read = width switch
+        {
+            2 => () => input.ReadUInt16(),
+            4 => () => input.ReadInt32(),
+            _ => () => input.ReadInt64()
+        };
+
+        var error = Assert.Throws<EndOfStreamException>(read);
+        Assert.Equal("Unexpected end of Hessian2 payload.", error.Message);
+        Assert.Equal(remaining, input.Remaining);
+        Assert.Equal(0x01, input.PeekByte());
+        Assert.Equal(0x01, input.ReadByte());
+        Assert.Equal(remaining - 1, input.Remaining);
+    }
+
+    [Theory]
     [InlineData(-1)]
     [InlineData(2)]
     public void InvalidCopyOrReadLengthDoesNotConsumeInput(int length)
