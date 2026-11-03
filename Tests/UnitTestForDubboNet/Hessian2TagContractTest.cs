@@ -82,6 +82,35 @@ public class Hessian2TagContractTest
     }
 
     [Theory]
+    [InlineData("90")]
+    [InlineData("C800")]
+    [InlineData("D40000")]
+    public void IntegerZeroPointTagsDecodeToZero(string hex)
+    {
+        var reader = new DubboHessian2Reader(Convert.FromHexString(hex));
+        Assert.Equal(0, Assert.IsType<int>(reader.ReadValue()));
+    }
+
+    [Theory]
+    [InlineData("E0")]
+    [InlineData("F800")]
+    [InlineData("3C0000")]
+    public void LongZeroPointTagsDecodeToZero(string hex)
+    {
+        var reader = new DubboHessian2Reader(Convert.FromHexString(hex));
+        Assert.Equal(0L, Assert.IsType<long>(reader.ReadValue()));
+    }
+
+    [Fact]
+    public void CompactObjectFirstTagRefersToTheFirstClassDefinition()
+    {
+        // Class definition 'a', zero fields, then a compact object at index zero.
+        var reader = new DubboHessian2Reader(Convert.FromHexString("4301619060"));
+        var instance = Assert.IsType<Dictionary<object, object>>(reader.ReadValue());
+        Assert.Equal("a", instance["class"]);
+    }
+
+    [Theory]
     [InlineData("30", 0)]
     [InlineData("31", 256)]
     [InlineData("33", 768)]
