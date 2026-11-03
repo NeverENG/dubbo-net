@@ -19,12 +19,12 @@ using DubboNet.DubboService.Native.Hessian2;
 
 namespace UnitTestForDubboNet;
 
-public class Hessian2ByteReaderTest
+public class Hessian2ByteCursorTest
 {
     [Fact]
     public void PeekDoesNotAdvanceAndSequentialReadsConsumeExactlyOneByte()
     {
-        var input = new Hessian2ByteReader(new byte[] { 0x80, 0x01 });
+        var input = new Hessian2ByteCursor(new byte[] { 0x80, 0x01 });
         Assert.Equal(2, input.Remaining);
         Assert.Equal(0x80, input.PeekByte());
         Assert.Equal(0x80, input.PeekByte());
@@ -38,7 +38,7 @@ public class Hessian2ByteReaderTest
     [Fact]
     public void FixedWidthIntegersUseBigEndianOrderAndAdvanceOnce()
     {
-        var input = new Hessian2ByteReader(Convert.FromHexString(
+        var input = new Hessian2ByteCursor(Convert.FromHexString(
             "1234010203040102030405060708FF"));
         Assert.Equal(0x1234, input.ReadUInt16());
         Assert.Equal(0x01020304, input.ReadInt32());
@@ -51,7 +51,7 @@ public class Hessian2ByteReaderTest
     public void ReadBytesCopiesWithoutChangingTheSourceBuffer()
     {
         byte[] source = { 0x11, 0x22, 0x33 };
-        var input = new Hessian2ByteReader(source);
+        var input = new Hessian2ByteCursor(source);
         byte[] copy = input.ReadBytes(2);
         source[0] = 0xff;
         Assert.Equal(new byte[] { 0x11, 0x22 }, copy);
@@ -62,7 +62,7 @@ public class Hessian2ByteReaderTest
     [Fact]
     public void CopyToWritesOnlyRequestedBytesAndLeavesNextTagUnread()
     {
-        var input = new Hessian2ByteReader(new byte[] { 0xab, 0xcd, 0x54 });
+        var input = new Hessian2ByteCursor(new byte[] { 0xab, 0xcd, 0x54 });
         using var destination = new MemoryStream();
         input.CopyTo(destination, 2);
         Assert.Equal(new byte[] { 0xab, 0xcd }, destination.ToArray());
@@ -75,7 +75,7 @@ public class Hessian2ByteReaderTest
     [Fact]
     public void ConstructorPreservesTheExistingNullArgumentName()
     {
-        var error = Assert.Throws<ArgumentNullException>(() => new Hessian2ByteReader(null!));
+        var error = Assert.Throws<ArgumentNullException>(() => new Hessian2ByteCursor(null!));
         Assert.Equal("buffer", error.ParamName);
     }
 
@@ -87,7 +87,7 @@ public class Hessian2ByteReaderTest
     [InlineData(8)] // Eight-byte integer
     public void TruncatedReadsDoNotConsumeInput(int width)
     {
-        var input = new Hessian2ByteReader(new byte[] { 0x12 });
+        var input = new Hessian2ByteCursor(new byte[] { 0x12 });
         Assert.Equal(0x12, input.PeekByte());
         Assert.Equal(0x12, input.ReadByte());
         Assert.Equal(0, input.Remaining);
@@ -109,7 +109,7 @@ public class Hessian2ByteReaderTest
     [InlineData(2)]
     public void InvalidCopyOrReadLengthDoesNotConsumeInput(int length)
     {
-        var input = new Hessian2ByteReader(new byte[] { 0x12 });
+        var input = new Hessian2ByteCursor(new byte[] { 0x12 });
         using var destination = new MemoryStream();
         Assert.Throws<EndOfStreamException>(() => input.ReadBytes(length));
         Assert.Throws<EndOfStreamException>(() => input.CopyTo(destination, length));

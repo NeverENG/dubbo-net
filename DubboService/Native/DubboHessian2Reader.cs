@@ -39,7 +39,7 @@ namespace DubboNet.DubboService.Native
             public string[] Fields { get; set; }
         }
 
-        private readonly Hessian2ByteReader _input;
+        private readonly Hessian2ByteCursor _byteCursor;
         private readonly List<object> _references = new List<object>();
         private readonly List<string> _typeReferences = new List<string>();
         private readonly List<ClassDefinition> _classDefinitions = new List<ClassDefinition>();
@@ -50,7 +50,7 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         public DubboHessian2Reader(byte[] buffer)
         {
-            _input = new Hessian2ByteReader(buffer);
+            _byteCursor = new Hessian2ByteCursor(buffer);
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         public int ReadInt()
         {
-            return ReadInt(_input.ReadByte());
+            return ReadInt(_byteCursor.ReadByte());
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         public string ReadString()
         {
-            return ReadString(_input.ReadByte());
+            return ReadString(_byteCursor.ReadByte());
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace DubboNet.DubboService.Native
 
         private object ReadValueCore()
         {
-            byte tag = _input.ReadByte();
+            byte tag = _byteCursor.ReadByte();
             if (tag == Hessian2Tags.Null) return null;
             if (tag == Hessian2Tags.True) return true;
             if (tag == Hessian2Tags.False) return false;
@@ -97,11 +97,11 @@ namespace DubboNet.DubboService.Native
 
             if (tag == Hessian2Tags.DateMilliseconds)
             {
-                return DateTimeOffset.FromUnixTimeMilliseconds(_input.ReadInt64()).UtcDateTime;
+                return DateTimeOffset.FromUnixTimeMilliseconds(_byteCursor.ReadInt64()).UtcDateTime;
             }
             if (tag == Hessian2Tags.DateMinutes)
             {
-                return DateTimeOffset.FromUnixTimeSeconds((long)_input.ReadInt32() * 60).UtcDateTime;
+                return DateTimeOffset.FromUnixTimeSeconds((long)_byteCursor.ReadInt32() * 60).UtcDateTime;
             }
 
             if (IsStringTag(tag)) return ReadString(tag);
@@ -154,17 +154,17 @@ namespace DubboNet.DubboService.Native
                 string typeName = tag == Hessian2Tags.TypedMap ? ReadType() : null;
                 Dictionary<object, object> map = NewMap(typeName);
                 _references.Add(map);
-                while (_input.PeekByte() != Hessian2Tags.End)
+                while (_byteCursor.PeekByte() != Hessian2Tags.End)
                 {
                     object key = ReadValue();
                     object value = ReadValue();
                     map[key ?? "null"] = value;
                 }
-                _ = _input.ReadByte();
+                _ = _byteCursor.ReadByte();
                 return map;
             }
 
-            int definitionIndex = tag == Hessian2Tags.Object ? ReadInt() : tag - Hessian2Tags.CompactObjectMin;
+            int definitionIndex = tag == Hessian2Tags.Object ? ReadInt() : tag - Hessian2Tags.CompactObjectFirstTag;
             if (definitionIndex < 0 || definitionIndex >= _classDefinitions.Count)
             {
                 throw new InvalidDataException(
@@ -225,13 +225,13 @@ namespace DubboNet.DubboService.Native
                 case Hessian2Tags.UntypedFixedList:
                     return ReadInt();
                 default:
-                    if (tag >= Hessian2Tags.CompactTypedListMin && tag <= Hessian2Tags.CompactTypedListMax)
+                    if (tag >= Hessian2Tags.CompactTypedListFirstTag && tag <= Hessian2Tags.CompactTypedListLastTag)
                     {
-                        int length = tag - Hessian2Tags.CompactTypedListMin;
+                        int length = tag - Hessian2Tags.CompactTypedListFirstTag;
                         _ = ReadType();
                         return length;
                     }
-                    return tag - Hessian2Tags.CompactUntypedListMin;
+                    return tag - Hessian2Tags.CompactUntypedListFirstTag;
             }
         }
 
@@ -246,17 +246,17 @@ namespace DubboNet.DubboService.Native
                 return;
             }
 
-            while (_input.PeekByte() != Hessian2Tags.End)
+            while (_byteCursor.PeekByte() != Hessian2Tags.End)
             {
                 list.Add(ReadValue());
             }
-            _ = _input.ReadByte();
+            _ = _byteCursor.ReadByte();
         }
 
         private void EnsureCountFitsPayload(int count)
         {
             // Each declared value or field name needs at least one wire byte.
-            int remaining = _input.Remaining;
+            int remaining = _byteCursor.Remaining;
             if (count > remaining)
             {
                 throw new InvalidDataException(
@@ -266,7 +266,7 @@ namespace DubboNet.DubboService.Native
 
         private string ReadType()
         {
-            byte tag = _input.PeekByte();
+            byte tag = _byteCursor.PeekByte();
             if (IsIntTag(tag))
             {
                 int index = ReadInt();
@@ -282,65 +282,73 @@ namespace DubboNet.DubboService.Native
             return typeName;
         }
 
-        // The tag supplies a signed high part relative to the format-specific base;
-        // the following byte(s) fill in the low part of the value or length.
-        private int ReadCompactTwoByte(byte tag, byte tagBase)
+        // Integer tags are biased around a tag that represents zero. The tag supplies
+        // the signed high part; the following bytes supply the low part.
+        private int ReadSignedCompactWithOneByte(byte tag, byte zeroTag)
         {
-            int high = tag - tagBase;
-            int low = _input.ReadByte();
-            return (high << 8) + low;
+            int signedHighPart = tag - zeroTag;
+            int lowByte = _byteCursor.ReadByte();
+            return (signedHighPart << 8) + lowByte;
         }
 
-        private int ReadCompactThreeByte(byte tag, byte tagBase)
+        private int ReadSignedCompactWithTwoBytes(byte tag, byte zeroTag)
         {
-            int high = tag - tagBase;
-            int middle = _input.ReadByte();
-            int low = _input.ReadByte();
-            return (high << 16) + (middle << 8) + low;
+            int signedHighPart = tag - zeroTag;
+            int middleByte = _byteCursor.ReadByte();
+            int lowByte = _byteCursor.ReadByte();
+            return (signedHighPart << 16) + (middleByte << 8) + lowByte;
+        }
+
+        // String and binary length tags start at zero; the next byte is the low part.
+        private int ReadCompactLengthWithOneByte(byte tag, byte firstTag)
+        {
+            int highLengthByte = tag - firstTag;
+            int lowLengthByte = _byteCursor.ReadByte();
+            return (highLengthByte << 8) + lowLengthByte;
         }
 
         private int ReadInt(byte tag)
         {
-            if (tag >= Hessian2Tags.CompactIntMin && tag <= Hessian2Tags.CompactIntMax)
+            if (tag >= Hessian2Tags.CompactIntFirstTag && tag <= Hessian2Tags.CompactIntLastTag)
             {
-                return tag - Hessian2Tags.CompactIntBase;
+                return tag - Hessian2Tags.CompactIntZeroTag;
             }
-            if (tag >= Hessian2Tags.CompactIntTwoByteMin && tag <= Hessian2Tags.CompactIntTwoByteMax)
+            if (tag >= Hessian2Tags.CompactIntTwoByteFirstTag && tag <= Hessian2Tags.CompactIntTwoByteLastTag)
             {
-                return ReadCompactTwoByte(tag, Hessian2Tags.CompactIntTwoByteBase);
+                return ReadSignedCompactWithOneByte(tag, Hessian2Tags.CompactIntTwoByteZeroTag);
             }
-            if (tag >= Hessian2Tags.CompactIntThreeByteMin && tag <= Hessian2Tags.CompactIntThreeByteMax)
+            if (tag >= Hessian2Tags.CompactIntThreeByteFirstTag && tag <= Hessian2Tags.CompactIntThreeByteLastTag)
             {
-                return ReadCompactThreeByte(tag, Hessian2Tags.CompactIntThreeByteBase);
+                return ReadSignedCompactWithTwoBytes(tag, Hessian2Tags.CompactIntThreeByteZeroTag);
             }
             if (tag == Hessian2Tags.Int)
             {
-                return _input.ReadInt32();
+                return _byteCursor.ReadInt32();
             }
             throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not an integer.");
         }
 
         private long ReadLong(byte tag)
         {
-            if (tag >= Hessian2Tags.CompactLongMin && tag <= Hessian2Tags.CompactLongMax)
+            if (tag >= Hessian2Tags.CompactLongFirstTag && tag <= Hessian2Tags.CompactLongLastTag)
             {
-                return tag - Hessian2Tags.CompactLongBase;
+                return tag - Hessian2Tags.CompactLongZeroTag;
             }
-            if (tag >= Hessian2Tags.CompactLongTwoByteMin)
+            if (tag >= Hessian2Tags.CompactLongTwoByteFirstTag)
             {
-                return ReadCompactTwoByte(tag, Hessian2Tags.CompactLongTwoByteBase);
+                return ReadSignedCompactWithOneByte(tag, Hessian2Tags.CompactLongTwoByteZeroTag);
             }
-            if (tag >= Hessian2Tags.CompactLongThreeByteMin && tag <= Hessian2Tags.CompactLongThreeByteMax)
+            if (tag >= Hessian2Tags.CompactLongThreeByteFirstTag && tag <= Hessian2Tags.CompactLongThreeByteLastTag)
             {
-                return ReadCompactThreeByte(tag, Hessian2Tags.CompactLongThreeByteBase);
+                return ReadSignedCompactWithTwoBytes(tag, Hessian2Tags.CompactLongThreeByteZeroTag);
             }
             if (tag == Hessian2Tags.LongAsInt)
             {
-                return _input.ReadInt32();
+                return _byteCursor.ReadInt32();
             }
             if (tag == Hessian2Tags.Long)
             {
-                return _input.ReadInt64();
+                return _byteCursor.ReadInt64();
             }
             throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not a long.");
         }
@@ -354,13 +362,13 @@ namespace DubboNet.DubboService.Native
                 case Hessian2Tags.DoubleOne:
                     return 1d;
                 case Hessian2Tags.DoubleAsByte:
-                    return (sbyte)_input.ReadByte();
+                    return (sbyte)_byteCursor.ReadByte();
                 case Hessian2Tags.DoubleAsShort:
-                    return unchecked((short)_input.ReadUInt16());
+                    return unchecked((short)_byteCursor.ReadUInt16());
                 case Hessian2Tags.DoubleAsMillisecond:
-                    return _input.ReadInt32() * 0.001d;
+                    return _byteCursor.ReadInt32() * 0.001d;
                 case Hessian2Tags.Double:
-                    return BitConverter.Int64BitsToDouble(_input.ReadInt64());
+                    return BitConverter.Int64BitsToDouble(_byteCursor.ReadInt64());
                 default:
                     throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not a double.");
             }
@@ -372,16 +380,16 @@ namespace DubboNet.DubboService.Native
             while (tag == Hessian2Tags.StringChunk)
             {
                 chunks ??= new StringBuilder();
-                chunks.Append(ReadUtf8Chars(_input.ReadUInt16()));
-                tag = _input.ReadByte();
+                chunks.Append(ReadUtf8Chars(_byteCursor.ReadUInt16()));
+                tag = _byteCursor.ReadByte();
             }
 
             string last;
             if (tag == Hessian2Tags.Null) last = null;
-            else if (tag <= Hessian2Tags.ShortStringMax) last = ReadUtf8Chars(tag);
-            else if (tag >= Hessian2Tags.CompactStringMin && tag <= Hessian2Tags.CompactStringMax)
-                last = ReadUtf8Chars(ReadCompactTwoByte(tag, Hessian2Tags.CompactStringMin));
-            else if (tag == Hessian2Tags.String) last = ReadUtf8Chars(_input.ReadUInt16());
+            else if (tag <= Hessian2Tags.ShortStringLastTag) last = ReadUtf8Chars(tag);
+            else if (tag >= Hessian2Tags.CompactStringFirstTag && tag <= Hessian2Tags.CompactStringLastTag)
+                last = ReadUtf8Chars(ReadCompactLengthWithOneByte(tag, Hessian2Tags.CompactStringFirstTag));
+            else if (tag == Hessian2Tags.String) last = ReadUtf8Chars(_byteCursor.ReadUInt16());
             else throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not a string.");
             return chunks == null ? last : chunks.Append(last).ToString();
         }
@@ -392,7 +400,7 @@ namespace DubboNet.DubboService.Native
             int charsRead = 0;
             while (charsRead < charCount)
             {
-                byte first = _input.ReadByte();
+                byte first = _byteCursor.ReadByte();
                 if (first < 0x80)
                 {
                     builder.Append((char)first);
@@ -436,7 +444,7 @@ namespace DubboNet.DubboService.Native
 
         private int ReadContinuationByte()
         {
-            byte value = _input.ReadByte();
+            byte value = _byteCursor.ReadByte();
             if ((value & 0xc0) != 0x80)
             {
                 throw new InvalidDataException($"Invalid Hessian2 UTF-8 continuation byte 0x{value:x2}.");
@@ -453,45 +461,45 @@ namespace DubboNet.DubboService.Native
                 using MemoryStream chunks = new MemoryStream();
                 do
                 {
-                    int length = _input.ReadUInt16();
-                    _input.CopyTo(chunks, length);
-                    tag = _input.ReadByte();
+                    int length = _byteCursor.ReadUInt16();
+                    _byteCursor.CopyTo(chunks, length);
+                    tag = _byteCursor.ReadByte();
                 } while (tag == Hessian2Tags.BinaryChunk);
                 int finalLength = ReadFinalBinaryLength(tag);
-                _input.CopyTo(chunks, finalLength);
+                _byteCursor.CopyTo(chunks, finalLength);
                 return chunks.ToArray();
             }
-            return _input.ReadBytes(ReadFinalBinaryLength(tag));
+            return _byteCursor.ReadBytes(ReadFinalBinaryLength(tag));
         }
 
         private int ReadFinalBinaryLength(byte tag)
         {
-            if (tag >= Hessian2Tags.ShortBinaryMin && tag <= Hessian2Tags.ShortBinaryMax)
+            if (tag >= Hessian2Tags.ShortBinaryFirstTag && tag <= Hessian2Tags.ShortBinaryLastTag)
             {
-                return tag - Hessian2Tags.ShortBinaryMin;
+                return tag - Hessian2Tags.ShortBinaryFirstTag;
             }
-            if (tag >= Hessian2Tags.CompactBinaryMin && tag <= Hessian2Tags.CompactBinaryMax)
+            if (tag >= Hessian2Tags.CompactBinaryFirstTag && tag <= Hessian2Tags.CompactBinaryLastTag)
             {
-                return ReadCompactTwoByte(tag, Hessian2Tags.CompactBinaryMin);
+                return ReadCompactLengthWithOneByte(tag, Hessian2Tags.CompactBinaryFirstTag);
             }
             if (tag == Hessian2Tags.Binary)
             {
-                return _input.ReadUInt16();
+                return _byteCursor.ReadUInt16();
             }
             throw new InvalidDataException($"Hessian2 tag 0x{tag:x2} is not binary data.");
         }
 
         private static bool IsIntTag(byte tag)
         {
-            return tag == Hessian2Tags.Int || (tag >= Hessian2Tags.CompactIntMin && tag <= Hessian2Tags.CompactIntThreeByteMax);
+            return tag == Hessian2Tags.Int || (tag >= Hessian2Tags.CompactIntFirstTag && tag <= Hessian2Tags.CompactIntThreeByteLastTag);
         }
 
         private static bool IsLongTag(byte tag)
         {
             return tag == Hessian2Tags.Long
                 || tag == Hessian2Tags.LongAsInt
-                || (tag >= Hessian2Tags.CompactLongThreeByteMin && tag <= Hessian2Tags.CompactLongThreeByteMax)
-                || tag >= Hessian2Tags.CompactLongMin;
+                || (tag >= Hessian2Tags.CompactLongThreeByteFirstTag && tag <= Hessian2Tags.CompactLongThreeByteLastTag)
+                || tag >= Hessian2Tags.CompactLongFirstTag;
         }
 
         private static bool IsDoubleTag(byte tag)
@@ -503,22 +511,22 @@ namespace DubboNet.DubboService.Native
         {
             return tag == Hessian2Tags.String
                 || tag == Hessian2Tags.StringChunk
-                || tag <= Hessian2Tags.ShortStringMax
-                || (tag >= Hessian2Tags.CompactStringMin && tag <= Hessian2Tags.CompactStringMax);
+                || tag <= Hessian2Tags.ShortStringLastTag
+                || (tag >= Hessian2Tags.CompactStringFirstTag && tag <= Hessian2Tags.CompactStringLastTag);
         }
 
         private static bool IsBinaryTag(byte tag)
         {
             return tag == Hessian2Tags.BinaryChunk
                 || tag == Hessian2Tags.Binary
-                || (tag >= Hessian2Tags.ShortBinaryMin && tag <= Hessian2Tags.ShortBinaryMax)
-                || (tag >= Hessian2Tags.CompactBinaryMin && tag <= Hessian2Tags.CompactBinaryMax);
+                || (tag >= Hessian2Tags.ShortBinaryFirstTag && tag <= Hessian2Tags.ShortBinaryLastTag)
+                || (tag >= Hessian2Tags.CompactBinaryFirstTag && tag <= Hessian2Tags.CompactBinaryLastTag);
         }
 
         private static bool IsListTag(byte tag)
         {
             return (tag >= Hessian2Tags.TypedVariableList && tag <= Hessian2Tags.UntypedFixedList)
-                || (tag >= Hessian2Tags.CompactTypedListMin && tag <= Hessian2Tags.CompactUntypedListMax);
+                || (tag >= Hessian2Tags.CompactTypedListFirstTag && tag <= Hessian2Tags.CompactUntypedListLastTag);
         }
 
         private static bool IsMapOrObjectTag(byte tag)
@@ -526,7 +534,7 @@ namespace DubboNet.DubboService.Native
             return tag == Hessian2Tags.UntypedMap
                 || tag == Hessian2Tags.TypedMap
                 || tag == Hessian2Tags.Object
-                || (tag >= Hessian2Tags.CompactObjectMin && tag <= Hessian2Tags.CompactObjectMax);
+                || (tag >= Hessian2Tags.CompactObjectFirstTag && tag <= Hessian2Tags.CompactObjectLastTag);
         }
     }
 }

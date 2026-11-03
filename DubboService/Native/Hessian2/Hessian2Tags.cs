@@ -27,26 +27,26 @@ namespace DubboNet.DubboService.Native.Hessian2
         internal const byte Reference = 0x51;
 
         internal const byte Int = (byte)'I';
-        internal const byte CompactIntMin = 0x80;
-        internal const byte CompactIntMax = 0xbf;
-        internal const byte CompactIntBase = 0x90;
-        internal const byte CompactIntTwoByteMin = 0xc0;
-        internal const byte CompactIntTwoByteMax = 0xcf;
-        internal const byte CompactIntTwoByteBase = 0xc8;
-        internal const byte CompactIntThreeByteMin = 0xd0;
-        internal const byte CompactIntThreeByteMax = 0xd7;
-        internal const byte CompactIntThreeByteBase = 0xd4;
+        internal const byte CompactIntFirstTag = 0x80;
+        internal const byte CompactIntLastTag = 0xbf;
+        internal const byte CompactIntZeroTag = 0x90;
+        internal const byte CompactIntTwoByteFirstTag = 0xc0;
+        internal const byte CompactIntTwoByteLastTag = 0xcf;
+        internal const byte CompactIntTwoByteZeroTag = 0xc8;
+        internal const byte CompactIntThreeByteFirstTag = 0xd0;
+        internal const byte CompactIntThreeByteLastTag = 0xd7;
+        internal const byte CompactIntThreeByteZeroTag = 0xd4;
 
         internal const byte Long = (byte)'L';
         internal const byte LongAsInt = 0x59;
-        internal const byte CompactLongMin = 0xd8;
-        internal const byte CompactLongMax = 0xef;
-        internal const byte CompactLongBase = 0xe0;
-        internal const byte CompactLongTwoByteMin = 0xf0;
-        internal const byte CompactLongTwoByteBase = 0xf8;
-        internal const byte CompactLongThreeByteMin = 0x38;
-        internal const byte CompactLongThreeByteMax = 0x3f;
-        internal const byte CompactLongThreeByteBase = 0x3c;
+        internal const byte CompactLongFirstTag = 0xd8;
+        internal const byte CompactLongLastTag = 0xef;
+        internal const byte CompactLongZeroTag = 0xe0;
+        internal const byte CompactLongTwoByteFirstTag = 0xf0;
+        internal const byte CompactLongTwoByteZeroTag = 0xf8;
+        internal const byte CompactLongThreeByteFirstTag = 0x38;
+        internal const byte CompactLongThreeByteLastTag = 0x3f;
+        internal const byte CompactLongThreeByteZeroTag = 0x3c;
 
         internal const byte Double = (byte)'D'; // 0x44
         internal const byte DoubleZero = 0x5b;
@@ -59,30 +59,30 @@ namespace DubboNet.DubboService.Native.Hessian2
 
         internal const byte String = (byte)'S';
         internal const byte StringChunk = (byte)'R';
-        internal const byte ShortStringMax = 0x1f;
-        internal const byte CompactStringMin = 0x30;
-        internal const byte CompactStringMax = 0x33;
+        internal const byte ShortStringLastTag = 0x1f;
+        internal const byte CompactStringFirstTag = 0x30;
+        internal const byte CompactStringLastTag = 0x33;
         internal const byte Binary = (byte)'B';
         internal const byte BinaryChunk = (byte)'A';
-        internal const byte ShortBinaryMin = 0x20;
-        internal const byte ShortBinaryMax = 0x2f;
-        internal const byte CompactBinaryMin = 0x34;
-        internal const byte CompactBinaryMax = 0x37;
+        internal const byte ShortBinaryFirstTag = 0x20;
+        internal const byte ShortBinaryLastTag = 0x2f;
+        internal const byte CompactBinaryFirstTag = 0x34;
+        internal const byte CompactBinaryLastTag = 0x37;
 
         internal const byte TypedVariableList = 0x55;
         internal const byte TypedFixedList = 0x56;
         internal const byte UntypedVariableList = 0x57;
         internal const byte UntypedFixedList = 0x58;
-        internal const byte CompactTypedListMin = 0x70;
-        internal const byte CompactTypedListMax = 0x77;
-        internal const byte CompactUntypedListMin = 0x78;
-        internal const byte CompactUntypedListMax = 0x7f;
+        internal const byte CompactTypedListFirstTag = 0x70;
+        internal const byte CompactTypedListLastTag = 0x77;
+        internal const byte CompactUntypedListFirstTag = 0x78;
+        internal const byte CompactUntypedListLastTag = 0x7f;
 
         internal const byte ClassDefinition = (byte)'C';
         internal const byte UntypedMap = (byte)'H';
         internal const byte TypedMap = (byte)'M';
         internal const byte Object = (byte)'O';
-        internal const byte CompactObjectMin = 0x60;
-        internal const byte CompactObjectMax = 0x6f;
+        internal const byte CompactObjectFirstTag = 0x60;
+        internal const byte CompactObjectLastTag = 0x6f;
     }
 }

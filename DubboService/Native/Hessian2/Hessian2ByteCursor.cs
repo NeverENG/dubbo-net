@@ -22,12 +22,12 @@ using System.IO;
 namespace DubboNet.DubboService.Native.Hessian2
 {
     // Owns the input buffer and cursor; Hessian2 tags and decoded values belong to the caller.
-    internal sealed class Hessian2ByteReader
+    internal sealed class Hessian2ByteCursor
     {
         private readonly byte[] _buffer;
         private int _position;
 
-        internal Hessian2ByteReader(byte[] buffer)
+        internal Hessian2ByteCursor(byte[] buffer)
         {
             _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         }
