@@ -334,7 +334,7 @@ namespace DubboNet.DubboService.Native
             {
                 return tag - Hessian2Tags.CompactLongZeroTag;
             }
-            if (tag >= Hessian2Tags.CompactLongTwoByteFirstTag)
+            if (tag >= Hessian2Tags.CompactLongTwoByteFirstTag && tag <= Hessian2Tags.CompactLongTwoByteLastTag)
             {
                 return ReadSignedCompactWithOneByte(tag, Hessian2Tags.CompactLongTwoByteZeroTag);
             }
@@ -499,7 +499,8 @@ namespace DubboNet.DubboService.Native
             return tag == Hessian2Tags.Long
                 || tag == Hessian2Tags.LongAsInt
                 || (tag >= Hessian2Tags.CompactLongThreeByteFirstTag && tag <= Hessian2Tags.CompactLongThreeByteLastTag)
-                || tag >= Hessian2Tags.CompactLongFirstTag;
+                || (tag >= Hessian2Tags.CompactLongFirstTag && tag <= Hessian2Tags.CompactLongLastTag)
+                || (tag >= Hessian2Tags.CompactLongTwoByteFirstTag && tag <= Hessian2Tags.CompactLongTwoByteLastTag);
         }
 
         private static bool IsDoubleTag(byte tag)

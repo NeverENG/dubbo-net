@@ -43,6 +43,7 @@ namespace DubboNet.DubboService.Native.Hessian2
         internal const byte CompactLongLastTag = 0xef;
         internal const byte CompactLongZeroTag = 0xe0;
         internal const byte CompactLongTwoByteFirstTag = 0xf0;
+        internal const byte CompactLongTwoByteLastTag = 0xff;
         internal const byte CompactLongTwoByteZeroTag = 0xf8;
         internal const byte CompactLongThreeByteFirstTag = 0x38;
         internal const byte CompactLongThreeByteLastTag = 0x3f;
