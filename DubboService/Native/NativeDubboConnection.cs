@@ -209,11 +209,11 @@ namespace DubboNet.DubboService.Native
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    byte[] header = new byte[NativeDubboCodec.HeaderLength];
+                    byte[] header = new byte[Frame.HeaderLength];
                     await ReadExactlyAsync(stream, header, cancellationToken).ConfigureAwait(false);
 
                     int payloadLength = BinaryPrimitives.ReadInt32BigEndian(
-                        header.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthLength));
+                        header.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize));
                     if (payloadLength < 0 || payloadLength > _maxPayloadLength)
                     {
                         throw new InvalidDataException(

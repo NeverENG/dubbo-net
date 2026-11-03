@@ -18,22 +18,23 @@
 namespace DubboNet.DubboService.Native.Protocol
 {
     /// <summary>
-    /// Dubbo2 wire frame layout and values; not configurable size or safety limits.
+    /// Dubbo2 帧的固定布局和线上取值；容量及安全限制不属于帧格式。
+    /// <para>EN: Fixed Dubbo2 frame layout and wire values, excluding capacity and safety limits.</para>
     /// </summary>
     internal static class DubboFrameConstants
     {
         internal const int HeaderLength = 16;
-        internal const int MagicFirstOffset = 0;
-        internal const int MagicSecondOffset = 1;
+        internal const int MagicHighByteOffset = 0;
+        internal const int MagicLowByteOffset = 1;
         internal const int FlagsOffset = 2;
         internal const int StatusOffset = 3;
         internal const int RequestIdOffset = 4;
-        internal const int RequestIdLength = 8;
+        internal const int RequestIdFieldSize = 8;
         internal const int BodyLengthOffset = 12;
-        internal const int BodyLengthLength = 4;
+        internal const int BodyLengthFieldSize = 4;
 
-        internal const byte MagicFirstByte = 0xda;
-        internal const byte MagicSecondByte = 0xbb;
+        internal const byte MagicHighByte = 0xda;
+        internal const byte MagicLowByte = 0xbb;
         internal const byte RequestFlag = 0x80;
         internal const byte TwoWayFlag = 0x40;
         internal const byte EventFlag = 0x20;
