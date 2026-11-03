@@ -17,6 +17,7 @@
 
 using DubboNet.DubboService.DataModle;
 using Frame = DubboNet.DubboService.Native.Protocol.DubboFrameConstants;
+using ResponseKind = DubboNet.DubboService.Native.Protocol.DubboResponseKinds;
 using NHessian.IO;
 using System;
 using System.Buffers.Binary;
@@ -215,23 +216,23 @@ namespace DubboNet.DubboService.Native
             response.ResultKind = input.ReadInt();
             switch (response.ResultKind)
             {
-                case 0:
+                case ResponseKind.Exception:
                     response.Exception = ToJsonCompatible(input.ReadValue(), budget);
                     break;
-                case 1:
+                case ResponseKind.Value:
                     response.Value = ToJsonCompatible(input.ReadValue(), budget);
                     break;
-                case 2:
+                case ResponseKind.NullValue:
                     break;
-                case 3:
+                case ResponseKind.ExceptionWithAttachments:
                     response.Exception = ToJsonCompatible(input.ReadValue(), budget);
                     response.Attachments = ReadAttachments(input, budget);
                     break;
-                case 4:
+                case ResponseKind.ValueWithAttachments:
                     response.Value = ToJsonCompatible(input.ReadValue(), budget);
                     response.Attachments = ReadAttachments(input, budget);
                     break;
-                case 5:
+                case ResponseKind.NullValueWithAttachments:
                     response.Attachments = ReadAttachments(input, budget);
                     break;
                 default:
