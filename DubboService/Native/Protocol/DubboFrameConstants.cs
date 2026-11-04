@@ -27,7 +27,8 @@ namespace DubboNet.DubboService.Native.Protocol
         internal const int MagicHighByteOffset = 0;
         internal const int MagicLowByteOffset = 1;
         internal const int FlagsOffset = 2;
-        internal const int StatusOffset = 3;
+        // Requests reserve this byte as zero; responses use it for status.
+        internal const int StatusOrReservedOffset = 3;
         internal const int RequestIdOffset = 4;
         internal const int RequestIdFieldSize = 8;
         internal const int BodyLengthOffset = 12;

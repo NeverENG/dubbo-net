@@ -37,7 +37,6 @@ namespace DubboNet.DubboService.Native
     /// </summary>
     internal static class NativeDubboCodec
     {
-        internal const int HeaderLength = Frame.HeaderLength;
         internal const int DefaultMaxPayloadLength = 8 * 1024 * 1024;
         internal const int MaxNormalizedNodes = 100_000;
         internal const long MaxNormalizedJsonBytes = 32L * 1024 * 1024;
@@ -80,16 +79,16 @@ namespace DubboNet.DubboService.Native
                 group,
                 timeoutMilliseconds);
 
-            byte[] frame = new byte[HeaderLength + body.Length];
+            byte[] frame = new byte[Frame.HeaderLength + body.Length];
             frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
             frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
             frame[Frame.FlagsOffset] = Frame.RequestFlag | Frame.TwoWayFlag | Hessian2SerializationId;
-            frame[Frame.StatusOffset] = 0;
+            frame[Frame.StatusOrReservedOffset] = 0;
             BinaryPrimitives.WriteInt64BigEndian(
                 frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
             BinaryPrimitives.WriteInt32BigEndian(
                 frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), body.Length);
-            body.CopyTo(frame, HeaderLength);
+            body.CopyTo(frame, Frame.HeaderLength);
             return frame;
         }
 
@@ -99,16 +98,17 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static byte[] EncodeHeartbeat(long requestId)
         {
-            byte[] frame = new byte[HeaderLength + 1];
+            byte[] frame = new byte[Frame.HeaderLength + 1];
             frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
             frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
             frame[Frame.FlagsOffset] = Frame.RequestFlag | Frame.TwoWayFlag
                 | Frame.EventFlag | Hessian2SerializationId;
+            frame[Frame.StatusOrReservedOffset] = 0;
             BinaryPrimitives.WriteInt64BigEndian(
                 frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
             BinaryPrimitives.WriteInt32BigEndian(
                 frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), 1);
-            frame[HeaderLength] = (byte)'N';
+            frame[Frame.HeaderLength] = (byte)'N';
             return frame;
         }
 
@@ -118,17 +118,17 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static byte[] EncodeHeartbeatResponse(long requestId, byte serializationId)
         {
-            byte[] frame = new byte[HeaderLength + 1];
+            byte[] frame = new byte[Frame.HeaderLength + 1];
             frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
             frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
             frame[Frame.FlagsOffset] = (byte)(Frame.EventFlag
                 | (serializationId & Frame.SerializationMask));
-            frame[Frame.StatusOffset] = OkStatus;
+            frame[Frame.StatusOrReservedOffset] = OkStatus;
             BinaryPrimitives.WriteInt64BigEndian(
                 frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
             BinaryPrimitives.WriteInt32BigEndian(
                 frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), 1);
-            frame[HeaderLength] = (byte)'N';
+            frame[Frame.HeaderLength] = (byte)'N';
             return frame;
         }
 
@@ -248,9 +248,9 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static NativeDubboFrame DecodeFrameHeader(byte[] header, byte[] body)
         {
-            if (header == null || header.Length != HeaderLength)
+            if (header == null || header.Length != Frame.HeaderLength)
             {
-                throw new InvalidDataException($"Dubbo header must contain exactly {HeaderLength} bytes.");
+                throw new InvalidDataException($"Dubbo header must contain exactly {Frame.HeaderLength} bytes.");
             }
             if (header[Frame.MagicHighByteOffset] != Frame.MagicHighByte
                 || header[Frame.MagicLowByteOffset] != Frame.MagicLowByte)
@@ -272,7 +272,7 @@ namespace DubboNet.DubboService.Native
             return new NativeDubboFrame
             {
                 Flags = flags,
-                Status = header[Frame.StatusOffset],
+                Status = header[Frame.StatusOrReservedOffset],
                 RequestId = BinaryPrimitives.ReadInt64BigEndian(
                     header.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize)),
                 SerializationId = (byte)(flags & Frame.SerializationMask),
