@@ -330,6 +330,28 @@ public class MyNacosTest
     }
 
     [Fact]
+    public void ProviderConversion_GeneratesMissingProviderUrlValues()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("interface");
+        instance.Ephemeral = false;
+        instance.Weight = 0.5;
+        instance.Healthy = false;
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, "com.example.Fallback");
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("com.example.Fallback", query["interface"]);
+        Assert.Equal("true", query["disabled"]);
+        Assert.Equal("false", query["dynamic"]);
+        Assert.Equal("50", query["weight"]);
+        Assert.Equal("com.example.Fallback", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(50, endpoint.Weight);
+    }
+
+    [Fact]
     public void ProviderUrlParser_ReadsProviderQueryKeysIndependentlyOfNacos()
     {
         var url = new Uri("dubbo://127.0.0.1:20880/com.example.Service?" +
