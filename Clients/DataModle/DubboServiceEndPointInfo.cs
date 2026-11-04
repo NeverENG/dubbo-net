@@ -133,12 +133,12 @@ namespace DubboNet.Clients.DataModle
             {
                 dubboServiceEndPointInfo.Deprecated = tempBoolValue;
             }
-            if (bool.TryParse(queryParameters["disabled"], out tempBoolValue))
+            if (bool.TryParse(queryParameters[ProviderUrlKeys.Disabled], out tempBoolValue))
             {
                 dubboServiceEndPointInfo.Disabled = tempBoolValue;
             }
             dubboServiceEndPointInfo.BeanName = queryParameters["bean.name"];
-            if (bool.TryParse(queryParameters["dynamic"], out tempBoolValue))
+            if (bool.TryParse(queryParameters[ProviderUrlKeys.Dynamic], out tempBoolValue))
             {
                 dubboServiceEndPointInfo.Dynamic = tempBoolValue;
             }
@@ -147,7 +147,7 @@ namespace DubboNet.Clients.DataModle
             {
                 dubboServiceEndPointInfo.Generic = tempBoolValue;
             }
-            dubboServiceEndPointInfo.Interface = queryParameters["interface"];
+            dubboServiceEndPointInfo.Interface = queryParameters[ProviderUrlKeys.Interface];
             dubboServiceEndPointInfo.Loadbalance = queryParameters["loadbalance"];
             if (int.TryParse(queryParameters["pid"], out tempIntValue))
             {
@@ -205,7 +205,7 @@ namespace DubboNet.Clients.DataModle
             {
                 dubboServiceEndPointInfo.Timestamp = tempLongValue;
             }
-            if (int.TryParse(queryParameters["weight"], out tempIntValue))
+            if (int.TryParse(queryParameters[ProviderUrlKeys.Weight], out tempIntValue))
             {
                 dubboServiceEndPointInfo.Weight = tempIntValue;
             }
