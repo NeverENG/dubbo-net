@@ -376,6 +376,20 @@ public class MyNacosTest
     }
 
     [Fact]
+    public void ProviderConversion_UsesEphemeralForMissingDynamicMetadata()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("dynamic");
+        instance.Ephemeral = true;
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, Service);
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("true", query["dynamic"]);
+        Assert.True(endpoint.Dynamic);
+    }
+
+    [Fact]
     public void ProviderUrlParser_ReadsProviderQueryKeysIndependentlyOfNacos()
     {
         var url = new Uri("dubbo://127.0.0.1:20880/com.example.Service?" +
