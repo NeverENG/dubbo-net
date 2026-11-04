@@ -365,7 +365,7 @@ namespace DubboNet.DubboService.Native
                     return (sbyte)_byteCursor.ReadByte();
                 case Hessian2Tags.DoubleAsShort:
                     return unchecked((short)_byteCursor.ReadUInt16());
-                case Hessian2Tags.DoubleAsMillisecond:
+                case Hessian2Tags.DoubleAsThousandths:
                     return _byteCursor.ReadInt32() * 0.001d;
                 case Hessian2Tags.Double:
                     return BitConverter.Int64BitsToDouble(_byteCursor.ReadInt64());
@@ -505,7 +505,7 @@ namespace DubboNet.DubboService.Native
 
         private static bool IsDoubleTag(byte tag)
         {
-            return tag == Hessian2Tags.Double || (tag >= Hessian2Tags.DoubleZero && tag <= Hessian2Tags.DoubleAsMillisecond);
+            return tag == Hessian2Tags.Double || (tag >= Hessian2Tags.DoubleZero && tag <= Hessian2Tags.DoubleAsThousandths);
         }
 
         private static bool IsStringTag(byte tag)
