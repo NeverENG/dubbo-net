@@ -307,6 +307,43 @@ public class MyNacosTest
     }
 
     [Fact]
+    public void ProviderConversion_PreservesProviderUrlQueryKeys()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("interface");
+        instance.Metadata["disabled"] = "true";
+        instance.Metadata["dynamic"] = "false";
+        instance.Metadata["weight"] = "37";
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, "com.example.Fallback");
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("com.example.Fallback", query["interface"]);
+        Assert.Equal("true", query["disabled"]);
+        Assert.Equal("false", query["dynamic"]);
+        Assert.Equal("37", query["weight"]);
+        Assert.Equal("app", query["application"]);
+        Assert.Equal("com.example.Fallback", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(37, endpoint.Weight);
+    }
+
+    [Fact]
+    public void ProviderUrlParser_ReadsProviderQueryKeysIndependentlyOfNacos()
+    {
+        var url = new Uri("dubbo://127.0.0.1:20880/com.example.Service?" +
+            "interface=com.example.Service&disabled=true&dynamic=false&weight=37");
+
+        DubboServiceEndPointInfo endpoint = DubboServiceEndPointInfo.GetDubboServiceEndPointInfo(url);
+
+        Assert.Equal("com.example.Service", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(37, endpoint.Weight);
+    }
+
+    [Fact]
     public void ProviderConversion_PreservesDisabledAndZeroWeight()
     {
         Instance instance = FakeNacos.Provider(20880);
