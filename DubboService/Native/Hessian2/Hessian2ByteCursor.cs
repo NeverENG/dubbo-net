@@ -79,11 +79,12 @@ namespace DubboNet.DubboService.Native.Hessian2
             return result;
         }
 
-        internal void CopyTo(Stream destination, int count)
+        internal ReadOnlySpan<byte> ReadSpan(int count)
         {
             EnsureAvailable(count);
-            destination.Write(_buffer, _position, count);
+            ReadOnlySpan<byte> span = _buffer.AsSpan(_position, count);
             _position += count;
+            return span;
         }
 
         private void EnsureAvailable(int count)

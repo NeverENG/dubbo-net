@@ -54,6 +54,8 @@ namespace DubboNet.DubboService.Native.Hessian2
         internal const byte DoubleOne = 0x5c;
         internal const byte DoubleAsByte = 0x5d;
         internal const byte DoubleAsShort = 0x5e;
+        // Dubbo hessian-lite uses 0x5f as BC_DOUBLE_MILL (32-bit integer / 1000),
+        // unlike the Caucho bytecode map, which describes a 32-bit float here.
         internal const byte DoubleAsMillisecond = 0x5f;
         internal const byte DateMilliseconds = 0x4a;
         internal const byte DateMinutes = 0x4b;
