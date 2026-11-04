@@ -1146,9 +1146,9 @@ namespace DubboNet.Clients.RegistryClient
             string protocol = metadata.TryGetValue("protocol", out string protocolValue)
                 && !string.IsNullOrWhiteSpace(protocolValue)
                 ? protocolValue
-                : "dubbo";
-            if (!string.Equals(protocol, "dubbo", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(protocol, "tri", StringComparison.OrdinalIgnoreCase))
+                : ProviderProtocolSchemes.Dubbo;
+            if (!string.Equals(protocol, ProviderProtocolSchemes.Dubbo, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(protocol, ProviderProtocolSchemes.Tri, StringComparison.OrdinalIgnoreCase))
             {
                 MyLogger.LogWarning(
                     $"[MyNacos] unsupported Dubbo provider protocol '{protocol}' at " +
