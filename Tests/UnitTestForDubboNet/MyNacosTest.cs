@@ -306,6 +306,103 @@ public class MyNacosTest
         Assert.Equal(2, calls);
     }
 
+    [Theory]
+    [InlineData(null, "dubbo")]
+    [InlineData("", "dubbo")]
+    [InlineData("DubBo", "dubbo")]
+    [InlineData("TRI", "tri")]
+    [InlineData("triple", null)]
+    [InlineData("http", null)]
+    public void ProviderConversion_RecognizesOnlySupportedSchemes(
+        string? protocol, string? expectedScheme)
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        if (protocol is null) instance.Metadata.Remove("protocol");
+        else instance.Metadata["protocol"] = protocol;
+
+        DubboServiceEndPointInfo? endpoint = MyNacos.ConvertInstance(instance, Service);
+
+        if (expectedScheme is null) Assert.Null(endpoint);
+        else Assert.Equal(expectedScheme, endpoint?.Scheme);
+    }
+
+    [Fact]
+    public void ProviderConversion_PreservesProviderUrlQueryKeys()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("interface");
+        instance.Metadata["disabled"] = "true";
+        instance.Ephemeral = true; // Metadata must win over the generated "true" default.
+        instance.Metadata["dynamic"] = "false";
+        instance.Metadata["weight"] = "37";
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, "com.example.Fallback");
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("com.example.Fallback", query["interface"]);
+        Assert.Equal("true", query["disabled"]);
+        Assert.Equal("false", query["dynamic"]);
+        Assert.Equal("37", query["weight"]);
+        Assert.Equal("app", query["application"]);
+        Assert.Equal("3.3.6", query["release"]);
+        Assert.Equal("1", query["version"]);
+        Assert.Equal("g", query["group"]);
+        Assert.Equal("com.example.Fallback", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(37, endpoint.Weight);
+    }
+
+    [Fact]
+    public void ProviderConversion_GeneratesMissingProviderUrlValues()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("interface");
+        instance.Ephemeral = false;
+        instance.Weight = 0.5;
+        instance.Healthy = false;
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, "com.example.Fallback");
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("com.example.Fallback", query["interface"]);
+        Assert.Equal("true", query["disabled"]);
+        Assert.Equal("false", query["dynamic"]);
+        Assert.Equal("50", query["weight"]);
+        Assert.Equal("com.example.Fallback", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(50, endpoint.Weight);
+    }
+
+    [Fact]
+    public void ProviderConversion_UsesEphemeralForMissingDynamicMetadata()
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        instance.Metadata.Remove("dynamic");
+        instance.Ephemeral = true;
+
+        DubboServiceEndPointInfo endpoint = MyNacos.ConvertInstance(instance, Service);
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(endpoint.RegistryUrl).Query);
+
+        Assert.Equal("true", query["dynamic"]);
+        Assert.True(endpoint.Dynamic);
+    }
+
+    [Fact]
+    public void ProviderUrlParser_ReadsProviderQueryKeysIndependentlyOfNacos()
+    {
+        var url = new Uri("dubbo://127.0.0.1:20880/com.example.Service?" +
+            "interface=com.example.Service&disabled=true&dynamic=false&weight=37");
+
+        DubboServiceEndPointInfo endpoint = DubboServiceEndPointInfo.GetDubboServiceEndPointInfo(url);
+
+        Assert.Equal("com.example.Service", endpoint.Interface);
+        Assert.True(endpoint.Disabled);
+        Assert.False(endpoint.Dynamic);
+        Assert.Equal(37, endpoint.Weight);
+    }
+
     [Fact]
     public void ProviderConversion_PreservesDisabledAndZeroWeight()
     {

@@ -1146,16 +1146,16 @@ namespace DubboNet.Clients.RegistryClient
             string protocol = metadata.TryGetValue("protocol", out string protocolValue)
                 && !string.IsNullOrWhiteSpace(protocolValue)
                 ? protocolValue
-                : "dubbo";
-            if (!string.Equals(protocol, "dubbo", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(protocol, "tri", StringComparison.OrdinalIgnoreCase))
+                : ProviderProtocolSchemes.Dubbo;
+            if (!string.Equals(protocol, ProviderProtocolSchemes.Dubbo, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(protocol, ProviderProtocolSchemes.Tri, StringComparison.OrdinalIgnoreCase))
             {
                 MyLogger.LogWarning(
                     $"[MyNacos] unsupported Dubbo provider protocol '{protocol}' at " +
                     $"{instance.Ip}:{instance.Port}");
                 return null;
             }
-            string interfaceName = metadata.TryGetValue("interface", out string interfaceValue)
+            string interfaceName = metadata.TryGetValue(ProviderUrlKeys.Interface, out string interfaceValue)
                 && !string.IsNullOrWhiteSpace(interfaceValue)
                 ? interfaceValue
                 : fallbackInterfaceName;
@@ -1163,23 +1163,23 @@ namespace DubboNet.Clients.RegistryClient
                 metadata,
                 StringComparer.OrdinalIgnoreCase)
             {
-                ["interface"] = interfaceName,
-                ["disabled"] = (!instance.Healthy
+                [ProviderUrlKeys.Interface] = interfaceName,
+                [ProviderUrlKeys.Disabled] = (!instance.Healthy
                     || !instance.Enabled
-                    || (metadata.TryGetValue("disabled", out string disabled)
-                        && bool.TryParse(disabled, out bool isDisabled) && isDisabled)).ToString().ToLowerInvariant()
+                    || (metadata.TryGetValue(ProviderUrlKeys.Disabled, out string disabledMetadataValue)
+                        && bool.TryParse(disabledMetadataValue, out bool isDisabled) && isDisabled)).ToString().ToLowerInvariant()
             };
-            if (!parameters.ContainsKey("dynamic"))
+            if (!parameters.ContainsKey(ProviderUrlKeys.Dynamic))
             {
-                parameters["dynamic"] = instance.Ephemeral.ToString().ToLowerInvariant();
+                parameters[ProviderUrlKeys.Dynamic] = instance.Ephemeral.ToString().ToLowerInvariant();
             }
             if (instance.Weight <= 0)
             {
-                parameters["weight"] = "0";
+                parameters[ProviderUrlKeys.Weight] = "0";
             }
-            else if (!parameters.ContainsKey("weight"))
+            else if (!parameters.ContainsKey(ProviderUrlKeys.Weight))
             {
-                parameters["weight"] = Math.Max(0, (int)Math.Round(instance.Weight * 100D)).ToString();
+                parameters[ProviderUrlKeys.Weight] = Math.Max(0, (int)Math.Round(instance.Weight * 100D)).ToString();
             }
             string query = string.Join("&", parameters.Select(item =>
                 Uri.EscapeDataString(item.Key) + "=" + Uri.EscapeDataString(item.Value ?? string.Empty)));

@@ -149,7 +149,7 @@ namespace DubboNet.Clients
                     ?? Array.Empty<DubboServiceEndPointInfo>())
                 .Where(provider => provider?.EndPoint != null
                     && provider.Disabled != true
-                    && string.Equals(provider.Scheme, "dubbo", StringComparison.OrdinalIgnoreCase))
+                    && string.Equals(provider.Scheme, ProviderProtocolSchemes.Dubbo, StringComparison.OrdinalIgnoreCase))
                 .GroupBy(provider => provider.EndPoint)
                 .Select(group => group.First())
                 .ToArray();

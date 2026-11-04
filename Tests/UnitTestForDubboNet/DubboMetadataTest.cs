@@ -19,6 +19,7 @@ using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.Clients.RegistryClient;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
@@ -422,6 +423,34 @@ namespace UnitTestForDubboNet
                 });
 
             Assert.True(actual);
+        }
+
+        [Theory]
+        [InlineData("tri")]
+        [InlineData("TRI")]
+        [InlineData("http")]
+        public async Task TelnetProbe_RejectsNonDubboProviderSchemes(string scheme)
+        {
+            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
+            try
+            {
+                listener.Start();
+                DubboServiceEndPointInfo provider = Provider("3.3.6");
+                provider.Scheme = scheme;
+                provider.EndPoint = (IPEndPoint)listener.LocalEndpoint;
+
+                DubboTelnetMetadataResult result = await DubboTelnetMetadataResolver.LoadAsync(
+                    provider.Interface, new[] { provider }, 50).WaitAsync(TimeSpan.FromSeconds(2));
+
+                Assert.Empty(result.Methods);
+                Assert.Equal("No active dubbo:// provider endpoint is available for a Telnet probe.",
+                    result.FailureReason);
+                Assert.False(listener.Pending()); // No connection was queued for a non-dubbo provider.
+            }
+            finally
+            {
+                listener.Stop();
+            }
         }
 
         [Fact]
