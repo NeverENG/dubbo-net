@@ -306,6 +306,26 @@ public class MyNacosTest
         Assert.Equal(2, calls);
     }
 
+    [Theory]
+    [InlineData(null, "dubbo")]
+    [InlineData("", "dubbo")]
+    [InlineData("DubBo", "dubbo")]
+    [InlineData("TRI", "tri")]
+    [InlineData("triple", null)]
+    [InlineData("http", null)]
+    public void ProviderConversion_RecognizesOnlySupportedSchemes(
+        string? protocol, string? expectedScheme)
+    {
+        Instance instance = FakeNacos.Provider(20880);
+        if (protocol is null) instance.Metadata.Remove("protocol");
+        else instance.Metadata["protocol"] = protocol;
+
+        DubboServiceEndPointInfo? endpoint = MyNacos.ConvertInstance(instance, Service);
+
+        if (expectedScheme is null) Assert.Null(endpoint);
+        else Assert.Equal(expectedScheme, endpoint?.Scheme);
+    }
+
     [Fact]
     public void ProviderConversion_PreservesProviderUrlQueryKeys()
     {

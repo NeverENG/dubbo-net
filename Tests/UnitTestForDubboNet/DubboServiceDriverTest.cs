@@ -78,6 +78,25 @@ namespace UnitTestForDubboNet
             //Assert.False(true);
         }
 
+        [Theory]
+        [InlineData("DuBbO", typeof(NativeDubboActuatorSuite))]
+        [InlineData("TRI", typeof(TripleDubboActuatorSuite))]
+        [InlineData("telnet", typeof(TelnetDubboActuatorSuite))]
+        public void ProviderSchemeSelection_PreservesCaseAndUnknownFallback(string scheme, Type expectedSuite)
+        {
+            var endpoint = new DubboServiceEndPointInfo
+            {
+                EndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 20880),
+                Scheme = scheme,
+                Interface = "com.foo.DemoService"
+            };
+            using var driver = new DubboServiceDriver(endpoint.Interface,
+                new List<DubboServiceEndPointInfo> { endpoint },
+                new Dictionary<DubboEndpointKey, DubboActuatorSuiteEndPintInfo>());
+
+            Assert.IsType(expectedSuite, driver.GetDubboActuatorSuite(LoadBalanceMode.Random));
+        }
+
         [Fact]
         public void DubboProviderScheme_SelectsNativeDubboActuatorSuite()
         {
