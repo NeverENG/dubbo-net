@@ -28,8 +28,8 @@ namespace UnitTestForDubboNet
         {
             Assert.Equal("providers", RegistryCategories.Providers);
             Assert.Equal("consumers", RegistryCategories.Consumers);
-            Assert.Equal("/" + RegistryCategories.Providers, ZooKeeperRegistryPaths.ProvidersSuffix);
-            Assert.Equal("/" + RegistryCategories.Consumers + "/", ZooKeeperRegistryPaths.ConsumersDirectory);
+            Assert.Equal("/providers", ZooKeeperRegistryPaths.ProvidersSuffix);
+            Assert.Equal("/consumers/", ZooKeeperRegistryPaths.ConsumersDirectory);
         }
 
         [Theory]
