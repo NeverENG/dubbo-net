@@ -125,9 +125,9 @@ namespace DubboNet.Clients
                 DubboRequestTimeout = _configuration.DubboRequestTimeout,
                 MaxConnections = _configuration.DubboActuatorSuiteMaxConnections
             };
-            if (string.Equals(endpoint.Scheme, "dubbo", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(endpoint.Scheme, ProviderProtocolSchemes.Dubbo, StringComparison.OrdinalIgnoreCase))
                 return new NativeDubboActuatorSuite(endpoint.EndPoint, options);
-            if (string.Equals(endpoint.Scheme, "tri", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(endpoint.Scheme, ProviderProtocolSchemes.Tri, StringComparison.OrdinalIgnoreCase))
                 return new TripleDubboActuatorSuite(endpoint.EndPoint, options);
             return new TelnetDubboActuatorSuite(endpoint.EndPoint, options);
         }
