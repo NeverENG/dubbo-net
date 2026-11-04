@@ -23,6 +23,15 @@ namespace UnitTestForDubboNet
 {
     public class ZooKeeperRegistryPathContractTest
     {
+        [Fact]
+        public void RegistryCategories_AreSharedWithoutIncludingZooKeeperPathSeparators()
+        {
+            Assert.Equal("providers", RegistryCategories.Providers);
+            Assert.Equal("consumers", RegistryCategories.Consumers);
+            Assert.Equal("/" + RegistryCategories.Providers, ZooKeeperRegistryPaths.ProvidersSuffix);
+            Assert.Equal("/" + RegistryCategories.Consumers + "/", ZooKeeperRegistryPaths.ConsumersDirectory);
+        }
+
         [Theory]
         [InlineData(null, "/dubbo/", "/dubbo")]
         [InlineData("apps", "/apps/", "/apps")]
