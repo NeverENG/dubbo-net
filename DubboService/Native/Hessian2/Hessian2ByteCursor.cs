@@ -79,6 +79,10 @@ namespace DubboNet.DubboService.Native.Hessian2
             return result;
         }
 
+        /// <summary>
+        /// Reads a bounded view and advances the cursor. The returned span aliases the
+        /// input buffer supplied at construction; consume it before modifying that buffer.
+        /// </summary>
         internal ReadOnlySpan<byte> ReadSpan(int count)
         {
             EnsureAvailable(count);

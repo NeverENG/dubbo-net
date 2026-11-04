@@ -139,10 +139,9 @@ public class Hessian2ByteCursorTest
     {
         var input = new Hessian2ByteCursor(new byte[] { 0x12 });
         Assert.Throws<EndOfStreamException>(() => input.ReadBytes(length));
-        Assert.Throws<EndOfStreamException>(() => ReadInvalidSpan(input, length));
+        Assert.Throws<EndOfStreamException>(() => input.ReadSpan(length));
         Assert.Equal(1, input.Remaining);
         Assert.Equal(0x12, input.ReadByte());
     }
 
-    private static void ReadInvalidSpan(Hessian2ByteCursor cursor, int count) => cursor.ReadSpan(count);
 }
