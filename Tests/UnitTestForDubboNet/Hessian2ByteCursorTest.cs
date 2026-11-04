@@ -60,15 +60,13 @@ public class Hessian2ByteCursorTest
     }
 
     [Fact]
-    public void CopyToWritesOnlyRequestedBytesAndLeavesNextTagUnread()
+    public void ReadSpanExposesOnlyRequestedBytesAndLeavesNextTagUnread()
     {
         var input = new Hessian2ByteCursor(new byte[] { 0xab, 0xcd, 0x54 });
-        using var destination = new MemoryStream();
-        input.CopyTo(destination, 2);
-        Assert.Equal(new byte[] { 0xab, 0xcd }, destination.ToArray());
+        Assert.Equal(new byte[] { 0xab, 0xcd }, input.ReadSpan(2).ToArray());
         Assert.Equal(0x54, input.PeekByte());
         Assert.Equal(1, input.Remaining);
-        input.CopyTo(destination, 0);
+        Assert.Equal(0, input.ReadSpan(0).Length);
         Assert.Equal(1, input.Remaining);
     }
 
@@ -133,16 +131,18 @@ public class Hessian2ByteCursorTest
     }
 
     [Theory]
+    [InlineData(int.MinValue)]
     [InlineData(-1)]
     [InlineData(2)]
-    public void InvalidCopyOrReadLengthDoesNotConsumeInput(int length)
+    [InlineData(int.MaxValue)]
+    public void InvalidReadLengthDoesNotConsumeInput(int length)
     {
         var input = new Hessian2ByteCursor(new byte[] { 0x12 });
-        using var destination = new MemoryStream();
         Assert.Throws<EndOfStreamException>(() => input.ReadBytes(length));
-        Assert.Throws<EndOfStreamException>(() => input.CopyTo(destination, length));
-        Assert.Equal(0, destination.Length);
+        Assert.Throws<EndOfStreamException>(() => ReadInvalidSpan(input, length));
         Assert.Equal(1, input.Remaining);
         Assert.Equal(0x12, input.ReadByte());
     }
+
+    private static void ReadInvalidSpan(Hessian2ByteCursor cursor, int count) => cursor.ReadSpan(count);
 }

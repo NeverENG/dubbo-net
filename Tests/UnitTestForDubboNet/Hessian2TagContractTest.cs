@@ -29,6 +29,8 @@ public class Hessian2TagContractTest
     [InlineData("5DFF", -1d)]            // compact byte
     [InlineData("5E0100", 256d)]         // compact short
     [InlineData("5F000003E8", 1d)]       // compact millisecond precision
+    [InlineData("5F000009C4", 2.5d)]    // Dubbo BC_DOUBLE_MILL, not IEEE-754 float
+    [InlineData("5F000000FA", 0.25d)]
     public void DoubleTagsDecodeFromIndependentWireBytes(string hex, double expected)
     {
         var reader = new DubboHessian2Reader(Convert.FromHexString(hex));
