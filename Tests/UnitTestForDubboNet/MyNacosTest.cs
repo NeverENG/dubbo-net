@@ -332,6 +332,7 @@ public class MyNacosTest
         Instance instance = FakeNacos.Provider(20880);
         instance.Metadata.Remove("interface");
         instance.Metadata["disabled"] = "true";
+        instance.Ephemeral = true; // Metadata must win over the generated "true" default.
         instance.Metadata["dynamic"] = "false";
         instance.Metadata["weight"] = "37";
 

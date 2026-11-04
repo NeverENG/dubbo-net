@@ -424,6 +424,23 @@ namespace UnitTestForDubboNet
             Assert.True(actual);
         }
 
+        [Theory]
+        [InlineData("tri")]
+        [InlineData("TRI")]
+        [InlineData("http")]
+        public async Task TelnetProbe_RejectsNonDubboProviderSchemes(string scheme)
+        {
+            DubboServiceEndPointInfo provider = Provider("3.3.6");
+            provider.Scheme = scheme;
+
+            DubboTelnetMetadataResult result = await DubboTelnetMetadataResolver.LoadAsync(
+                provider.Interface, new[] { provider }, 50);
+
+            Assert.Empty(result.Methods);
+            Assert.Equal("No active dubbo:// provider endpoint is available for a Telnet probe.",
+                result.FailureReason);
+        }
+
         [Fact]
         public void ParseTelnetMetadata_HandlesOverloadsEmptyParametersAndErasesGenerics()
         {
