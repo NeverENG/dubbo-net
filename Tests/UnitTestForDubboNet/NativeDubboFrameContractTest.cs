@@ -36,9 +36,9 @@ namespace UnitTestForDubboNet
         }
 
         [Fact]
-        public void HeartbeatResponse_PreservesSerializationMaskAndStatus()
+        public void HeartbeatResponse_HasExactWireHeaderAndBody()
         {
-            byte[] frame = NativeDubboCodec.EncodeHeartbeatResponse(7, 0xe2);
+            byte[] frame = NativeDubboCodec.EncodeHeartbeatResponse(7, 0x02);
 
             Assert.Equal(new byte[]
             {
@@ -46,6 +46,15 @@ namespace UnitTestForDubboNet
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
                 0x00, 0x00, 0x00, 0x01, (byte)'N'
             }, frame);
+        }
+
+        [Fact]
+        public void HeartbeatResponse_MasksSerializationIdWithoutSettingRequestFlags()
+        {
+            byte[] frame = NativeDubboCodec.EncodeHeartbeatResponse(7, 0xe2);
+
+            Assert.Equal(0x22, frame[2]); // Response event + Hessian2, no request or two-way bit.
+            Assert.Equal(0x14, frame[3]);
         }
 
         [Fact]
