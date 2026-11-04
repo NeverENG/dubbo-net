@@ -49,19 +49,19 @@ namespace UnitTestForDubboNet
         }
 
         [Fact]
-        public void DecodeHeader_ExtractsFlagsSerializationAndFieldsFromRawBytes()
+        public void DecodeHeartbeatResponseHeader_ExtractsFlagsSerializationAndStatusFromRawBytes()
         {
             byte[] header =
             {
-                0xda, 0xbb, 0xe2, 0x14,
+                0xda, 0xbb, 0x22, 0x14,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
                 0x00, 0x00, 0x00, 0x01
             };
 
             NativeDubboFrame decoded = NativeDubboCodec.DecodeFrameHeader(header, new byte[] { (byte)'N' });
 
-            Assert.True(decoded.IsRequest);
-            Assert.True(decoded.IsTwoWay);
+            Assert.False(decoded.IsRequest);
+            Assert.False(decoded.IsTwoWay);
             Assert.True(decoded.IsEvent);
             Assert.Equal(2, decoded.SerializationId);
             Assert.Equal(20, decoded.Status);
