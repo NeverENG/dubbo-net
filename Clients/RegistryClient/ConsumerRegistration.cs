@@ -60,7 +60,7 @@ namespace DubboNet.Clients.RegistryClient
                 ["application"] = options.ApplicationName,
                 ["interface"] = Service,
                 ["side"] = "consumer",
-                ["category"] = "consumers",
+                ["category"] = RegistryCategories.Consumers,
                 ["client"] = "dubbonet",
                 ["dubbo"] = "2.0.2",
                 ["dynamic"] = "true",
@@ -86,7 +86,7 @@ namespace DubboNet.Clients.RegistryClient
         public string ZooKeeperPath => Root.TrimEnd('/') + "/" + Uri.EscapeDataString(Service)
             + ZooKeeperRegistryPaths.ConsumersDirectory + Uri.EscapeDataString(ConsumerUrl);
 
-        public string NacosServiceName => string.Join(":", "consumers", Service, Version, Group);
+        public string NacosServiceName => string.Join(":", RegistryCategories.Consumers, Service, Version, Group);
     }
 
     internal sealed class ConsumerRegistrationTracker : IDisposable

@@ -24,8 +24,8 @@ namespace DubboNet.Clients.RegistryClient
     internal static class ZooKeeperRegistryPaths
     {
         internal const string DefaultRoot = "/dubbo";
-        internal const string ProvidersNode = "providers";
+        internal const string ProvidersNode = RegistryCategories.Providers;
         internal const string ProvidersSuffix = "/" + ProvidersNode;
-        internal const string ConsumersDirectory = "/consumers/";
+        internal const string ConsumersDirectory = "/" + RegistryCategories.Consumers + "/";
     }
 }

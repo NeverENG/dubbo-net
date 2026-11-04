@@ -241,6 +241,7 @@ namespace DubboNet.Clients.RegistryClient
 
         private const string NacosPrefix = "nacos://";
         private const string MetadataLocationPrefix = "nacos-config://";
+        private const string ProviderServicePrefix = RegistryCategories.Providers + ":";
         private const int NacosPageSize = 500;
         private const long ConfigTimeoutMilliseconds = 10_000;
 
@@ -936,10 +937,9 @@ namespace DubboNet.Clients.RegistryClient
         public static string ExtractDubboInterfaceName(string nacosServiceName)
         {
             if (string.IsNullOrWhiteSpace(nacosServiceName)) return null;
-            const string prefix = "providers:";
-            if (nacosServiceName.StartsWith(prefix, StringComparison.Ordinal))
+            if (nacosServiceName.StartsWith(ProviderServicePrefix, StringComparison.Ordinal))
             {
-                string remainder = nacosServiceName.Substring(prefix.Length);
+                string remainder = nacosServiceName.Substring(ProviderServicePrefix.Length);
                 int separator = remainder.IndexOf(':');
                 string interfaceName = separator < 0
                     ? remainder
@@ -962,7 +962,7 @@ namespace DubboNet.Clients.RegistryClient
             {
                 return false;
             }
-            string prefix = "providers:" + interfaceName;
+            string prefix = ProviderServicePrefix + interfaceName;
             return string.Equals(nacosServiceName, prefix, StringComparison.Ordinal)
                 || nacosServiceName.StartsWith(prefix + ":", StringComparison.Ordinal)
                 || string.Equals(nacosServiceName, interfaceName, StringComparison.Ordinal);
