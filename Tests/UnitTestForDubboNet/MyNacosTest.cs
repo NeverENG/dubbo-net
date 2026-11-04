@@ -323,6 +323,9 @@ public class MyNacosTest
         Assert.Equal("false", query["dynamic"]);
         Assert.Equal("37", query["weight"]);
         Assert.Equal("app", query["application"]);
+        Assert.Equal("3.3.6", query["release"]);
+        Assert.Equal("1", query["version"]);
+        Assert.Equal("g", query["group"]);
         Assert.Equal("com.example.Fallback", endpoint.Interface);
         Assert.True(endpoint.Disabled);
         Assert.False(endpoint.Dynamic);

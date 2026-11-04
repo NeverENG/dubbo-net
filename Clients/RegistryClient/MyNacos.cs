@@ -1166,8 +1166,8 @@ namespace DubboNet.Clients.RegistryClient
                 [ProviderUrlKeys.Interface] = interfaceName,
                 [ProviderUrlKeys.Disabled] = (!instance.Healthy
                     || !instance.Enabled
-                    || (metadata.TryGetValue(ProviderUrlKeys.Disabled, out string disabled)
-                        && bool.TryParse(disabled, out bool isDisabled) && isDisabled)).ToString().ToLowerInvariant()
+                    || (metadata.TryGetValue(ProviderUrlKeys.Disabled, out string disabledMetadataValue)
+                        && bool.TryParse(disabledMetadataValue, out bool isDisabled) && isDisabled)).ToString().ToLowerInvariant()
             };
             if (!parameters.ContainsKey(ProviderUrlKeys.Dynamic))
             {

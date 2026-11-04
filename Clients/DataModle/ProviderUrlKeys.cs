@@ -18,8 +18,8 @@
 namespace DubboNet.Clients.DataModle
 {
     /// <summary>
-    /// Provider 注册 URL 中由 Nacos 转换器写入、端点解析器读取的查询参数键。
-    /// <para>EN: Provider registry URL query keys shared by Nacos conversion and endpoint parsing.</para>
+    /// Provider 注册 URL 中，Nacos 转换器与端点解析器显式共享的查询参数键；不收录仅在解析端使用的键。
+    /// <para>EN: Explicitly shared provider URL query keys; parser-only keys remain local.</para>
     /// </summary>
     internal static class ProviderUrlKeys
     {
