@@ -55,6 +55,17 @@ public class MyNacosTest
     }
 
     [Fact]
+    public async Task ConfigDefaultGroup_DoesNotReuseDubboMetadataGroup()
+    {
+        var server = new FakeNacos { ConfigContent = "value" };
+        using MyNacos nacos = server.CreateClient();
+
+        Assert.Equal("value", await nacos.GetConfigAsync("data-id"));
+        Assert.True(await nacos.ConfigExistsAsync("data-id", " /custom/ "));
+        Assert.Equal(new[] { "DEFAULT_GROUP", "custom" }, server.ConfigQueriedGroups);
+    }
+
+    [Fact]
     public async Task DiscoveryPreservesSameSocketVersionsGroupsAndProtocols()
     {
         var server = new FakeNacos();
@@ -490,6 +501,7 @@ public class MyNacosTest
     {
         public List<string> Services { get; } = new();
         public List<string> QueriedGroups { get; } = new();
+        public List<string> ConfigQueriedGroups { get; } = new();
         public Dictionary<string, List<Instance>> Instances { get; } = new();
         public Dictionary<string, IEventListener> NamingListeners { get; } = new();
         public IListener? ConfigListener;
@@ -517,7 +529,7 @@ public class MyNacosTest
             ((SdkProxy)(object)config).Handler = (method, args) => method.Name switch
             {
                 "GetConfigAndSignListener" => ReadConfig((IListener)args[3]!),
-                "GetConfig" => Task.FromResult(ConfigContent),
+                "GetConfig" => ReadConfigGroup((string)args[1]!),
                 "RemoveListener" => RemoveConfig(),
                 "ShutDown" => Task.CompletedTask,
                 _ => throw new NotSupportedException(method.Name)
@@ -568,6 +580,11 @@ public class MyNacosTest
             return Task.CompletedTask;
         }
         private Task Unsubscribe(string name) { NamingListeners.Remove(name); return Task.CompletedTask; }
+        private Task<string?> ReadConfigGroup(string group)
+        {
+            ConfigQueriedGroups.Add(group);
+            return Task.FromResult(ConfigContent);
+        }
         private Task<string?> ReadConfig(IListener listener)
         {
             ConfigReads++;
