@@ -164,11 +164,13 @@ public class TestEndpointOptionsTest
         Assert.True(Parse("--help").ShowHelp);
     }
 
-    [Fact]
-    public async Task LocalhostResolvesBeforeTheIpOnlyNativeConstructorIsUsed()
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("LOCALHOST")]
+    public async Task LocalhostAlwaysUsesLoopbackBeforeTheIpOnlyNativeConstructorIsUsed(string host)
     {
-        IPAddress[] addresses = await Parse().ResolveProviderAddressesAsync();
-        Assert.NotEmpty(addresses);
+        IPAddress[] addresses = await Parse("--provider-host", host).ResolveProviderAddressesAsync();
+        Assert.Equal(new[] { IPAddress.Loopback, IPAddress.IPv6Loopback }, addresses);
         Assert.All(addresses, address => Assert.True(IPAddress.IsLoopback(address)));
         using var suite = new NativeDubboActuatorSuite(new IPEndPoint(addresses[0], 20880));
     }
