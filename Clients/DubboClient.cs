@@ -1437,7 +1437,7 @@ namespace DubboNet.Clients
             bool registryUsesNacos, bool metadataUsesNacos, DubboClientConf configuration)
         {
             string registryRoot = registryUsesNacos
-                ? MyNacos.NormalizeGroup(configuration.DubboRootPath, "DEFAULT_GROUP")
+                ? MyNacos.NormalizeGroup(configuration.DubboRootPath, NacosRegistryDefaults.DefaultGroup)
                 : NormalizeDubboRootPath(configuration.DubboRootPath);
             string metadataRoot = metadataUsesNacos
                 ? MyNacos.NormalizeGroup(configuration.MetadataRootPath, "dubbo")
