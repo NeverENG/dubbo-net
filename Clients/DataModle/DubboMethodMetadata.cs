@@ -184,35 +184,35 @@ namespace DubboNet.Clients.DataModle
         /// 类型定义标识符，可能为空。
         /// EN: Type-definition identifier; may be null.
         /// </summary>
-        [JsonPropertyName("id")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Id)]
         public string Id { get; set; }
 
         /// <summary>
         /// Java 类型名或 Dubbo 类型类别。
         /// EN: Java type name or Dubbo type category.
         /// </summary>
-        [JsonPropertyName("type")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Type)]
         public string Type { get; set; }
 
         /// <summary>
         /// 数组或集合的元素类型定义。
         /// EN: Item type definitions for arrays or collections.
         /// </summary>
-        [JsonPropertyName("items")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Items)]
         public List<DubboTypeMetadata> Items { get; set; } = new List<DubboTypeMetadata>();
 
         /// <summary>
         /// 枚举类型的可选常量值。
         /// EN: Declared constants of an enum type.
         /// </summary>
-        [JsonPropertyName("enum")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Enum)]
         public List<string> EnumValues { get; set; } = new List<string>();
 
         /// <summary>
         /// 兼容 Dubbo 3.2+ 使用的复数字段名。
         /// EN: Alias for the plural field name used by Dubbo 3.2+.
         /// </summary>
-        [JsonPropertyName("enums")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Enums)]
         public List<string> Enums
         {
             get => EnumValues;
@@ -223,14 +223,14 @@ namespace DubboNet.Clients.DataModle
         /// 指向另一类型定义的引用。
         /// EN: Reference to another type definition.
         /// </summary>
-        [JsonPropertyName("$ref")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Reference)]
         public string Reference { get; set; }
 
         /// <summary>
         /// POJO 属性名到属性类型定义的映射。
         /// EN: Mapping from POJO property names to their type definitions.
         /// </summary>
-        [JsonPropertyName("properties")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.Properties)]
         public Dictionary<string, DubboTypeMetadata> Properties { get; set; } =
             new Dictionary<string, DubboTypeMetadata>();
 
@@ -238,7 +238,7 @@ namespace DubboNet.Clients.DataModle
         /// Dubbo 生成该定义时使用的类型构建器名称。
         /// EN: Name of the Dubbo type builder that produced this definition.
         /// </summary>
-        [JsonPropertyName("typeBuilderName")]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.TypeBuilderName)]
         public string TypeBuilderName { get; set; }
 
         internal DubboTypeMetadata CloneForCaller()

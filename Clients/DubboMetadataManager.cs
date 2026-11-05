@@ -16,6 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
+using DubboNet.Clients.Metadata;
 using DubboNet.Clients.RegistryClient;
 using MyCommonHelper;
 using org.apache.zookeeper;
@@ -164,11 +165,11 @@ namespace DubboNet.Clients
                 }
 
                 writer.WriteStartObject();
-                WriteString(writer, "id", value.Id);
-                WriteString(writer, "type", value.Type);
+                WriteString(writer, DubboTypeMetadataJsonFields.Id, value.Id);
+                WriteString(writer, DubboTypeMetadataJsonFields.Type, value.Type);
                 if ((value.Items?.Count ?? 0) > 0)
                 {
-                    writer.WritePropertyName("items");
+                    writer.WritePropertyName(DubboTypeMetadataJsonFields.Items);
                     writer.WriteStartArray();
                     foreach (DubboTypeMetadata item in value.Items)
                     {
@@ -178,7 +179,7 @@ namespace DubboNet.Clients
                 }
                 if ((value.EnumValues?.Count ?? 0) > 0)
                 {
-                    writer.WritePropertyName("enums");
+                    writer.WritePropertyName(DubboTypeMetadataJsonFields.Enums);
                     writer.WriteStartArray();
                     foreach (string enumValue in value.EnumValues)
                     {
@@ -186,10 +187,10 @@ namespace DubboNet.Clients
                     }
                     writer.WriteEndArray();
                 }
-                WriteString(writer, "$ref", value.Reference);
+                WriteString(writer, DubboTypeMetadataJsonFields.Reference, value.Reference);
                 if ((value.Properties?.Count ?? 0) > 0)
                 {
-                    writer.WritePropertyName("properties");
+                    writer.WritePropertyName(DubboTypeMetadataJsonFields.Properties);
                     writer.WriteStartObject();
                     foreach (KeyValuePair<string, DubboTypeMetadata> property in value.Properties)
                     {
@@ -198,7 +199,7 @@ namespace DubboNet.Clients
                     }
                     writer.WriteEndObject();
                 }
-                WriteString(writer, "typeBuilderName", value.TypeBuilderName);
+                WriteString(writer, DubboTypeMetadataJsonFields.TypeBuilderName, value.TypeBuilderName);
                 writer.WriteEndObject();
             }
 
@@ -223,32 +224,32 @@ namespace DubboNet.Clients
                 DubboTypeMetadata result = new DubboTypeMetadata();
                 foreach (JsonProperty property in element.EnumerateObject())
                 {
-                    if (property.Name.Equals("id", StringComparison.OrdinalIgnoreCase))
+                    if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Id))
                     {
                         result.Id = ReadOptionalString(property.Value);
                     }
-                    else if (property.Name.Equals("type", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Type))
                     {
                         result.Type = ReadOptionalString(property.Value);
                     }
-                    else if (property.Name.Equals("$ref", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Reference))
                     {
                         result.Reference = ReadOptionalString(property.Value);
                     }
-                    else if (property.Name.Equals("typeBuilderName", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.TypeBuilderName))
                     {
                         result.TypeBuilderName = ReadOptionalString(property.Value);
                     }
-                    else if (property.Name.Equals("items", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Items))
                     {
                         result.Items = ReadItems(property.Value);
                     }
-                    else if (property.Name.Equals("properties", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Properties))
                     {
                         result.Properties = ReadProperties(property.Value);
                     }
-                    else if (property.Name.Equals("enum", StringComparison.OrdinalIgnoreCase)
-                        || property.Name.Equals("enums", StringComparison.OrdinalIgnoreCase))
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Enum)
+                        || MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Enums))
                     {
                         foreach (string enumValue in ReadEnumValues(property.Value))
                         {
@@ -261,6 +262,9 @@ namespace DubboNet.Clients
                 }
                 return result;
             }
+
+            private static bool MatchesFieldName(string name, string expected) =>
+                name.Equals(expected, StringComparison.OrdinalIgnoreCase);
 
             private static List<DubboTypeMetadata> ReadItems(JsonElement element)
             {
@@ -739,7 +743,7 @@ namespace DubboNet.Clients
             List<string> parts = new List<string>
             {
                 NormalizeRootPath(metadataRootPath),
-                "metadata",
+                DubboMetadataPaths.MetadataNode,
                 Uri.EscapeDataString(serviceName)
             };
             if (!string.IsNullOrEmpty(version))
@@ -750,7 +754,7 @@ namespace DubboNet.Clients
             {
                 parts.Add(group);
             }
-            parts.Add("provider");
+            parts.Add(DubboMetadataPaths.ProviderSide);
             parts.Add(application);
             return string.Join("/", parts.Select((part, index) =>
                 index == 0 ? part.TrimEnd('/') : part.Trim('/')));
@@ -1432,7 +1436,9 @@ namespace DubboNet.Clients
 
         private static string NormalizeRootPath(string rootPath)
         {
-            string normalized = string.IsNullOrWhiteSpace(rootPath) ? "/dubbo" : rootPath.Trim();
+            string normalized = string.IsNullOrWhiteSpace(rootPath)
+                ? DubboMetadataDefaults.ZooKeeperRootPath
+                : rootPath.Trim();
             if (!normalized.StartsWith("/", StringComparison.Ordinal))
             {
                 normalized = "/" + normalized;

@@ -16,6 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
+using DubboNet.Clients.Metadata;
 using DubboNet.Clients.RegistryClient;
 using DubboNet.DubboService;
 using DubboNet.DubboService.DataModle;
@@ -1434,7 +1435,7 @@ namespace DubboNet.Clients
         private static string NormalizeMetadataRootPath(string rootPath)
         {
             string normalized = string.IsNullOrWhiteSpace(rootPath)
-                ? ZooKeeperRegistryPaths.DefaultRoot
+                ? DubboMetadataDefaults.ZooKeeperRootPath
                 : rootPath.Trim();
             if (!normalized.StartsWith("/", StringComparison.Ordinal))
             {
@@ -1450,9 +1451,9 @@ namespace DubboNet.Clients
                 ? MyNacos.NormalizeGroup(configuration.DubboRootPath, "DEFAULT_GROUP")
                 : NormalizeDubboRootPath(configuration.DubboRootPath);
             string metadataRoot = metadataUsesNacos
-                ? MyNacos.NormalizeGroup(configuration.MetadataRootPath, "dubbo")
+                ? MyNacos.NormalizeGroup(configuration.MetadataRootPath, DubboMetadataDefaults.NacosGroup)
                 : string.IsNullOrWhiteSpace(configuration.MetadataRootPath)
-                    ? (registryUsesNacos ? ZooKeeperRegistryPaths.DefaultRoot : registryRoot.TrimEnd('/'))
+                    ? (registryUsesNacos ? DubboMetadataDefaults.ZooKeeperRootPath : registryRoot.TrimEnd('/'))
                     : NormalizeMetadataRootPath(configuration.MetadataRootPath);
             return (registryRoot, metadataRoot);
         }
