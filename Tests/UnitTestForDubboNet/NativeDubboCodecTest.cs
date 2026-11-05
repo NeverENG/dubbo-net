@@ -58,6 +58,7 @@ namespace UnitTestForDubboNet
             Assert.Equal(0xda, frame[0]);
             Assert.Equal(0xbb, frame[1]);
             Assert.Equal(0xc2, frame[2]);
+            Assert.Equal(0x00, frame[3]); // Requests reserve this byte for zero, not response status.
             Assert.Equal(42, BinaryPrimitives.ReadInt64BigEndian(frame.AsSpan(4, 8)));
             Assert.Equal(frame.Length - 16, BinaryPrimitives.ReadInt32BigEndian(frame.AsSpan(12, 4)));
 

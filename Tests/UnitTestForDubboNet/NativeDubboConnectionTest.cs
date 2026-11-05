@@ -17,6 +17,7 @@
 
 using DubboNet.DubboService.DataModle;
 using DubboNet.DubboService.Native;
+using Frame = DubboNet.DubboService.Native.Protocol.DubboFrameConstants;
 using NHessian.IO;
 using System.Buffers.Binary;
 using System.Net;
@@ -79,7 +80,7 @@ namespace UnitTestForDubboNet
 
         private static async Task<(long RequestId, string Method)> ReadRequest(NetworkStream stream)
         {
-            byte[] header = new byte[NativeDubboCodec.HeaderLength];
+            byte[] header = new byte[Frame.HeaderLength];
             await ReadExactly(stream, header);
             int bodyLength = BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(12, 4));
             byte[] body = new byte[bodyLength];
@@ -110,14 +111,14 @@ namespace UnitTestForDubboNet
                 body = stream.ToArray();
             }
 
-            byte[] frame = new byte[NativeDubboCodec.HeaderLength + body.Length];
+            byte[] frame = new byte[Frame.HeaderLength + body.Length];
             frame[0] = 0xda;
             frame[1] = 0xbb;
-            frame[2] = NativeDubboCodec.Hessian2SerializationId;
-            frame[3] = NativeDubboCodec.OkStatus;
+            frame[2] = 0x02; // Hessian2 serialization ID, independent of production constants.
+            frame[3] = 0x14; // Response OK status.
             BinaryPrimitives.WriteInt64BigEndian(frame.AsSpan(4, 8), requestId);
             BinaryPrimitives.WriteInt32BigEndian(frame.AsSpan(12, 4), body.Length);
-            body.CopyTo(frame, NativeDubboCodec.HeaderLength);
+            body.CopyTo(frame, Frame.HeaderLength);
             return frame;
         }
 

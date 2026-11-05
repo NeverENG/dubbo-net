@@ -16,6 +16,8 @@
  */
 
 using DubboNet.DubboService.DataModle;
+using Frame = DubboNet.DubboService.Native.Protocol.DubboFrameConstants;
+using ResponseKind = DubboNet.DubboService.Native.Protocol.DubboResponseKinds;
 using NHessian.IO;
 using System;
 using System.Buffers.Binary;
@@ -35,20 +37,14 @@ namespace DubboNet.DubboService.Native
     /// </summary>
     internal static class NativeDubboCodec
     {
-        internal const int HeaderLength = 16;
         internal const int DefaultMaxPayloadLength = 8 * 1024 * 1024;
         internal const int MaxNormalizedNodes = 100_000;
         internal const long MaxNormalizedJsonBytes = 32L * 1024 * 1024;
-        internal const byte Hessian2SerializationId = 2;
-        internal const byte OkStatus = 20;
+        internal const byte Hessian2SerializationId = Frame.Hessian2SerializationId;
+        internal const byte OkStatus = Frame.OkStatus;
         internal const string ProtocolVersion = "2.0.2";
         internal const string GenericParameterDescriptor =
             "Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/Object;";
-
-        private const byte RequestFlag = 0x80;
-        private const byte TwoWayFlag = 0x40;
-        private const byte EventFlag = 0x20;
-        private const byte SerializationMask = 0x1f;
 
         private static readonly JsonSerializerOptions ResultJsonOptions =
             new JsonSerializerOptions
@@ -83,14 +79,16 @@ namespace DubboNet.DubboService.Native
                 group,
                 timeoutMilliseconds);
 
-            byte[] frame = new byte[HeaderLength + body.Length];
-            frame[0] = 0xda;
-            frame[1] = 0xbb;
-            frame[2] = RequestFlag | TwoWayFlag | Hessian2SerializationId;
-            frame[3] = 0;
-            BinaryPrimitives.WriteInt64BigEndian(frame.AsSpan(4, 8), requestId);
-            BinaryPrimitives.WriteInt32BigEndian(frame.AsSpan(12, 4), body.Length);
-            body.CopyTo(frame, HeaderLength);
+            byte[] frame = new byte[Frame.HeaderLength + body.Length];
+            frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
+            frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
+            frame[Frame.FlagsOffset] = Frame.RequestFlag | Frame.TwoWayFlag | Hessian2SerializationId;
+            frame[Frame.StatusOrReservedOffset] = 0;
+            BinaryPrimitives.WriteInt64BigEndian(
+                frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
+            BinaryPrimitives.WriteInt32BigEndian(
+                frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), body.Length);
+            body.CopyTo(frame, Frame.HeaderLength);
             return frame;
         }
 
@@ -100,13 +98,17 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static byte[] EncodeHeartbeat(long requestId)
         {
-            byte[] frame = new byte[HeaderLength + 1];
-            frame[0] = 0xda;
-            frame[1] = 0xbb;
-            frame[2] = RequestFlag | TwoWayFlag | EventFlag | Hessian2SerializationId;
-            BinaryPrimitives.WriteInt64BigEndian(frame.AsSpan(4, 8), requestId);
-            BinaryPrimitives.WriteInt32BigEndian(frame.AsSpan(12, 4), 1);
-            frame[HeaderLength] = (byte)'N';
+            byte[] frame = new byte[Frame.HeaderLength + 1];
+            frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
+            frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
+            frame[Frame.FlagsOffset] = Frame.RequestFlag | Frame.TwoWayFlag
+                | Frame.EventFlag | Hessian2SerializationId;
+            frame[Frame.StatusOrReservedOffset] = 0;
+            BinaryPrimitives.WriteInt64BigEndian(
+                frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
+            BinaryPrimitives.WriteInt32BigEndian(
+                frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), 1);
+            frame[Frame.HeaderLength] = (byte)'N';
             return frame;
         }
 
@@ -116,14 +118,17 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static byte[] EncodeHeartbeatResponse(long requestId, byte serializationId)
         {
-            byte[] frame = new byte[HeaderLength + 1];
-            frame[0] = 0xda;
-            frame[1] = 0xbb;
-            frame[2] = (byte)(EventFlag | (serializationId & SerializationMask));
-            frame[3] = OkStatus;
-            BinaryPrimitives.WriteInt64BigEndian(frame.AsSpan(4, 8), requestId);
-            BinaryPrimitives.WriteInt32BigEndian(frame.AsSpan(12, 4), 1);
-            frame[HeaderLength] = (byte)'N';
+            byte[] frame = new byte[Frame.HeaderLength + 1];
+            frame[Frame.MagicHighByteOffset] = Frame.MagicHighByte;
+            frame[Frame.MagicLowByteOffset] = Frame.MagicLowByte;
+            frame[Frame.FlagsOffset] = (byte)(Frame.EventFlag
+                | (serializationId & Frame.SerializationMask));
+            frame[Frame.StatusOrReservedOffset] = OkStatus;
+            BinaryPrimitives.WriteInt64BigEndian(
+                frame.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize), requestId);
+            BinaryPrimitives.WriteInt32BigEndian(
+                frame.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize), 1);
+            frame[Frame.HeaderLength] = (byte)'N';
             return frame;
         }
 
@@ -211,23 +216,23 @@ namespace DubboNet.DubboService.Native
             response.ResultKind = input.ReadInt();
             switch (response.ResultKind)
             {
-                case 0:
+                case ResponseKind.Exception:
                     response.Exception = ToJsonCompatible(input.ReadValue(), budget);
                     break;
-                case 1:
+                case ResponseKind.Value:
                     response.Value = ToJsonCompatible(input.ReadValue(), budget);
                     break;
-                case 2:
+                case ResponseKind.NullValue:
                     break;
-                case 3:
+                case ResponseKind.ExceptionWithAttachments:
                     response.Exception = ToJsonCompatible(input.ReadValue(), budget);
                     response.Attachments = ReadAttachments(input, budget);
                     break;
-                case 4:
+                case ResponseKind.ValueWithAttachments:
                     response.Value = ToJsonCompatible(input.ReadValue(), budget);
                     response.Attachments = ReadAttachments(input, budget);
                     break;
-                case 5:
+                case ResponseKind.NullValueWithAttachments:
                     response.Attachments = ReadAttachments(input, budget);
                     break;
                 default:
@@ -243,33 +248,37 @@ namespace DubboNet.DubboService.Native
         /// </summary>
         internal static NativeDubboFrame DecodeFrameHeader(byte[] header, byte[] body)
         {
-            if (header == null || header.Length != HeaderLength)
+            if (header == null || header.Length != Frame.HeaderLength)
             {
-                throw new InvalidDataException($"Dubbo header must contain exactly {HeaderLength} bytes.");
+                throw new InvalidDataException($"Dubbo header must contain exactly {Frame.HeaderLength} bytes.");
             }
-            if (header[0] != 0xda || header[1] != 0xbb)
+            if (header[Frame.MagicHighByteOffset] != Frame.MagicHighByte
+                || header[Frame.MagicLowByteOffset] != Frame.MagicLowByte)
             {
                 throw new InvalidDataException(
-                    $"Invalid Dubbo magic 0x{header[0]:x2}{header[1]:x2}; expected 0xdabb.");
+                    $"Invalid Dubbo magic 0x{header[Frame.MagicHighByteOffset]:x2}{header[Frame.MagicLowByteOffset]:x2}; " +
+                    $"expected 0x{Frame.MagicHighByte:x2}{Frame.MagicLowByte:x2}.");
             }
 
-            int declaredLength = BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(12, 4));
+            int declaredLength = BinaryPrimitives.ReadInt32BigEndian(
+                header.AsSpan(Frame.BodyLengthOffset, Frame.BodyLengthFieldSize));
             if (body == null || declaredLength != body.Length)
             {
                 throw new InvalidDataException(
                     $"Dubbo body length mismatch. Header declares {declaredLength}, received {body?.Length ?? 0}.");
             }
 
-            byte flags = header[2];
+            byte flags = header[Frame.FlagsOffset];
             return new NativeDubboFrame
             {
                 Flags = flags,
-                Status = header[3],
-                RequestId = BinaryPrimitives.ReadInt64BigEndian(header.AsSpan(4, 8)),
-                SerializationId = (byte)(flags & SerializationMask),
-                IsRequest = (flags & RequestFlag) != 0,
-                IsTwoWay = (flags & TwoWayFlag) != 0,
-                IsEvent = (flags & EventFlag) != 0,
+                Status = header[Frame.StatusOrReservedOffset],
+                RequestId = BinaryPrimitives.ReadInt64BigEndian(
+                    header.AsSpan(Frame.RequestIdOffset, Frame.RequestIdFieldSize)),
+                SerializationId = (byte)(flags & Frame.SerializationMask),
+                IsRequest = (flags & Frame.RequestFlag) != 0,
+                IsTwoWay = (flags & Frame.TwoWayFlag) != 0,
+                IsEvent = (flags & Frame.EventFlag) != 0,
                 Body = body
             };
         }
