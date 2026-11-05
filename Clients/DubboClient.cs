@@ -252,7 +252,7 @@ namespace DubboNet.Clients
         /// 注册数据根路径；ZooKeeper 中为节点路径，Nacos 中为 Naming 分组。
         /// EN: Effective registry root; a node path in ZooKeeper and a Naming group in Nacos.
         /// </summary>
-        public string DubboRootPath { get; private set; } = "/dubbo/";
+        public string DubboRootPath { get; private set; } = ZooKeeperRegistryPaths.DefaultRoot + "/";
 
         /// <summary>
         /// 当前用于读取 Dubbo 元数据的注册中心地址；默认复用服务注册中心。
@@ -1190,9 +1190,13 @@ namespace DubboNet.Clients
                 string nowServiceName = serviceName;
                 if(isFullPath)
                 {
-                    if (serviceName.StartsWith(DubboRootPath) && serviceName.EndsWith("/providers"))
+                    if (serviceName.StartsWith(DubboRootPath)
+                        && serviceName.EndsWith(ZooKeeperRegistryPaths.ProvidersSuffix))
                     {
-                         nowServiceName = serviceName.Substring(DubboRootPath.Length, serviceName.Length- DubboRootPath.Length - "/providers".Length);
+                        nowServiceName = serviceName.Substring(
+                            DubboRootPath.Length,
+                            serviceName.Length - DubboRootPath.Length
+                                - ZooKeeperRegistryPaths.ProvidersSuffix.Length);
                     }
                     else
                     {
@@ -1220,14 +1224,14 @@ namespace DubboNet.Clients
             serviceName = null;
             if (string.IsNullOrEmpty(providerPath)
                 || !providerPath.StartsWith(DubboRootPath, StringComparison.Ordinal)
-                || !providerPath.EndsWith("/providers", StringComparison.Ordinal))
+                || !providerPath.EndsWith(ZooKeeperRegistryPaths.ProvidersSuffix, StringComparison.Ordinal))
             {
                 return false;
             }
 
             serviceName = providerPath.Substring(
                 DubboRootPath.Length,
-                providerPath.Length - DubboRootPath.Length - "/providers".Length);
+                providerPath.Length - DubboRootPath.Length - ZooKeeperRegistryPaths.ProvidersSuffix.Length);
             return !string.IsNullOrWhiteSpace(serviceName);
         }
 
@@ -1316,7 +1320,9 @@ namespace DubboNet.Clients
                 }
                 return nacosResult;
             }
-            string nowFullPath = isFullPath? serviceName: $"{DubboRootPath}{serviceName}/providers";
+            string nowFullPath = isFullPath
+                ? serviceName
+                : $"{DubboRootPath}{serviceName}{ZooKeeperRegistryPaths.ProvidersSuffix}";
             DubboServiceEndPointInfos serviceEndPointsInfo = new DubboServiceEndPointInfos();
             Stat stat =await _innerMyZookeeper.ExistsAsync(nowFullPath);
             if (stat==null)
@@ -1415,7 +1421,9 @@ namespace DubboNet.Clients
 
         private static string NormalizeDubboRootPath(string rootPath)
         {
-            string normalized = string.IsNullOrWhiteSpace(rootPath) ? "/dubbo" : rootPath.Trim();
+            string normalized = string.IsNullOrWhiteSpace(rootPath)
+                ? ZooKeeperRegistryPaths.DefaultRoot
+                : rootPath.Trim();
             if (!normalized.StartsWith("/", StringComparison.Ordinal))
             {
                 normalized = "/" + normalized;
@@ -1425,7 +1433,9 @@ namespace DubboNet.Clients
 
         private static string NormalizeMetadataRootPath(string rootPath)
         {
-            string normalized = string.IsNullOrWhiteSpace(rootPath) ? "/dubbo" : rootPath.Trim();
+            string normalized = string.IsNullOrWhiteSpace(rootPath)
+                ? ZooKeeperRegistryPaths.DefaultRoot
+                : rootPath.Trim();
             if (!normalized.StartsWith("/", StringComparison.Ordinal))
             {
                 normalized = "/" + normalized;
@@ -1442,7 +1452,7 @@ namespace DubboNet.Clients
             string metadataRoot = metadataUsesNacos
                 ? MyNacos.NormalizeGroup(configuration.MetadataRootPath, "dubbo")
                 : string.IsNullOrWhiteSpace(configuration.MetadataRootPath)
-                    ? (registryUsesNacos ? "/dubbo" : registryRoot.TrimEnd('/'))
+                    ? (registryUsesNacos ? ZooKeeperRegistryPaths.DefaultRoot : registryRoot.TrimEnd('/'))
                     : NormalizeMetadataRootPath(configuration.MetadataRootPath);
             return (registryRoot, metadataRoot);
         }
@@ -1505,7 +1515,7 @@ namespace DubboNet.Clients
             List<ZNode> resultZNodes = new List<ZNode>();
             foreach (var tn in dubboNodes.Children)
             {
-                if (tn.Path == "providers")
+                if (tn.Path == ZooKeeperRegistryPaths.ProvidersNode)
                 {
                     //resultZNodes.AddRange(tn.GetLeafNodeList());
                     resultZNodes.AddRange(tn.Children);

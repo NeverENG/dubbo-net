@@ -36,6 +36,19 @@ public class MyNacosTest
     private const string Group = "DEFAULT_GROUP";
     private const string Address = "nacos://localhost:8848";
 
+    [Theory]
+    [InlineData("providers:com.example.Service:1:g", "com.example.Service")]
+    [InlineData("providers:com.example.Service", "com.example.Service")]
+    [InlineData("providers:", null)]
+    [InlineData("providersX:com.example.Service:1:g", null)]
+    [InlineData("consumers:com.example.Service:1:g", null)]
+    [InlineData("com.example.Service", "com.example.Service")]
+    public void ExtractDubboInterfaceName_RecognizesOnlyProviderCategoryPrefix(
+        string serviceName, string? expectedInterface)
+    {
+        Assert.Equal(expectedInterface, MyNacos.ExtractDubboInterfaceName(serviceName));
+    }
+
     [Fact]
     public async Task OmittedNamingGroup_QueriesDefaultGroupButKeepsMetadataGroupDistinct()
     {
