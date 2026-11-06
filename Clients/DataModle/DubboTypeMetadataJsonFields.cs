@@ -26,7 +26,7 @@ namespace DubboNet.Clients.DataModle
         internal const string Id = "id";
         internal const string Type = "type";
         internal const string Items = "items";
-        internal const string Enum = "enum";
+        internal const string EnumValuesField = "enum";
         internal const string Enums = "enums";
         internal const string Reference = "$ref";
         internal const string Properties = "properties";

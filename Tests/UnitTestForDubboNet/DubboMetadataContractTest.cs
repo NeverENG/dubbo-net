@@ -17,6 +17,8 @@
 
 using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
+using DubboNet.Clients.Metadata;
+using DubboNet.Clients.RegistryClient;
 using System.Text;
 
 namespace UnitTestForDubboNet
@@ -41,6 +43,13 @@ namespace UnitTestForDubboNet
 
             Assert.Equal((expectedNamingRoot, expectedMetadataRoot),
                 DubboClient.ResolveRegistryPaths(namingUsesNacos, metadataUsesNacos, configuration));
+        }
+
+        [Fact]
+        public void ZooKeeperMetadataDefaultRoot_AgreesWithRegistryDefaultRoot()
+        {
+            // Metadata shares the ZooKeeper registry root even when Naming uses Nacos.
+            Assert.Equal(ZooKeeperRegistryPaths.DefaultRoot, DubboMetadataDefaults.ZooKeeperRootPath);
         }
 
         [Theory]

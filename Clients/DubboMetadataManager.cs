@@ -248,7 +248,7 @@ namespace DubboNet.Clients
                     {
                         result.Properties = ReadProperties(property.Value);
                     }
-                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Enum)
+                    else if (MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.EnumValuesField)
                         || MatchesFieldName(property.Name, DubboTypeMetadataJsonFields.Enums))
                     {
                         foreach (string enumValue in ReadEnumValues(property.Value))

@@ -205,7 +205,7 @@ namespace DubboNet.Clients.DataModle
         /// 枚举类型的可选常量值。
         /// EN: Declared constants of an enum type.
         /// </summary>
-        [JsonPropertyName(DubboTypeMetadataJsonFields.Enum)]
+        [JsonPropertyName(DubboTypeMetadataJsonFields.EnumValuesField)]
         public List<string> EnumValues { get; set; } = new List<string>();
 
         /// <summary>

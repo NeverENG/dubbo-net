@@ -24,6 +24,8 @@ namespace DubboNet.Clients.Metadata
     internal static class DubboMetadataDefaults
     {
         internal const string NacosGroup = "dubbo";
+        // Metadata hangs under the ZooKeeper registry root, including when Naming uses Nacos.
+        // Keep this independently owned default in sync with ZooKeeperRegistryPaths.DefaultRoot.
         internal const string ZooKeeperRootPath = "/dubbo";
     }
 }
