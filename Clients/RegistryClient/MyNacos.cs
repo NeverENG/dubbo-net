@@ -792,7 +792,7 @@ namespace DubboNet.Clients.RegistryClient
                 application
             });
             return MetadataLocationPrefix
-                + Uri.EscapeDataString(NormalizeGroup(metadataGroup))
+                + Uri.EscapeDataString(NormalizeGroup(metadataGroup, "dubbo"))
                 + "/"
                 + Uri.EscapeDataString(dataId);
         }
@@ -887,6 +887,8 @@ namespace DubboNet.Clients.RegistryClient
             }
         }
 
+        // Preserve the public optional argument for existing callers; internal callers
+        // must specify their Naming/Config or metadata default explicitly.
         public static string NormalizeGroup(string rootPath, string defaultGroup = "dubbo")
         {
             string normalized = string.IsNullOrWhiteSpace(rootPath) ? defaultGroup : rootPath.Trim();

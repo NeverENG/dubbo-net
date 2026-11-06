@@ -402,7 +402,7 @@ namespace DubboNet.Clients
                     serviceName,
                     providers,
                     telnetRequestTimeout);
-            _metadataRootPath = MyNacos.NormalizeGroup(metadataRootPath);
+            _metadataRootPath = MyNacos.NormalizeGroup(metadataRootPath, "dubbo");
             _metadataLocationBuilder = MyNacos.BuildMetadataLocation;
             _metadataExists = location => _metadataNacos.MetadataExistsAsync(
                 location,

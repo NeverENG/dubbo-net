@@ -1310,7 +1310,7 @@ namespace DubboNet.Clients
                     {
                         nacosResult.ErrorInfo =
                             $"no healthy provider endpoint for [{serviceName}] in Nacos group " +
-                            $"[{MyNacos.NormalizeGroup(DubboRootPath)}]";
+                            $"[{MyNacos.NormalizeGroup(DubboRootPath, NacosRegistryDefaults.DefaultGroup)}]";
                     }
                 }
                 catch (Exception exception)
