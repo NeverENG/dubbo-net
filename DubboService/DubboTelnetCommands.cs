@@ -18,7 +18,8 @@
 namespace DubboNet.DubboService
 {
     /// <summary>
-    /// Dubbo Telnet service commands shared by the actuator and metadata probe.
+    /// Dubbo Telnet 服务命令格式，由执行器与元数据探测共享。
+    /// <para>EN: Dubbo Telnet service command formats shared by the actuator and metadata probe.</para>
     /// </summary>
     internal static class DubboTelnetCommands
     {
