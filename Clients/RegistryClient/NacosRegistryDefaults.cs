@@ -17,6 +17,10 @@
 
 namespace DubboNet.Clients.RegistryClient
 {
+    /// <summary>
+    /// Nacos Naming 与 Config 的默认分组；不用于 Metadata 定义分组。
+    /// <para>EN: Default Nacos Naming and Config group, not the metadata-definition group.</para>
+    /// </summary>
     internal static class NacosRegistryDefaults
     {
         internal const string DefaultGroup = "DEFAULT_GROUP";
