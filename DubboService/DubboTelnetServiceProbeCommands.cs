@@ -18,10 +18,10 @@
 namespace DubboNet.DubboService
 {
     /// <summary>
-    /// Dubbo Telnet 服务命令格式，由执行器与元数据探测共享。
-    /// <para>EN: Dubbo Telnet service command formats shared by the actuator and metadata probe.</para>
+    /// Dubbo Telnet 服务方法探测命令，由执行器与元数据探测共享。
+    /// <para>EN: Dubbo Telnet service-method probe command shared by the actuator and metadata probe.</para>
     /// </summary>
-    internal static class DubboTelnetCommands
+    internal static class DubboTelnetServiceProbeCommands
     {
         private const string ListServiceMethodsPrefix = "ls -l ";
 

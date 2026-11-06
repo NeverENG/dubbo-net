@@ -19,14 +19,14 @@ using DubboNet.DubboService;
 
 namespace UnitTestForDubboNet
 {
-    public class DubboTelnetCommandsTest
+    public class DubboTelnetServiceProbeCommandsTest
     {
         [Theory]
         [InlineData("com.foo.DemoService", "ls -l com.foo.DemoService")]
         [InlineData("com.foo.DemoService:1.0.0", "ls -l com.foo.DemoService:1.0.0")]
         public void ListServiceMethods_PreservesTelnetCommandFormat(string serviceName, string expected)
         {
-            Assert.Equal(expected, DubboTelnetCommands.ListServiceMethods(serviceName));
+            Assert.Equal(expected, DubboTelnetServiceProbeCommands.ListServiceMethods(serviceName));
         }
     }
 }

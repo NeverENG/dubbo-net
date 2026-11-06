@@ -176,7 +176,7 @@ namespace DubboNet.Clients
                         continue;
                     }
 
-                    string command = DubboTelnetCommands.ListServiceMethods(serviceName);
+                    string command = DubboTelnetServiceProbeCommands.ListServiceMethods(serviceName);
                     NetService.Telnet.ExTelnet.TelnetRequestResult response =
                         await actuator.SendCommandAsync(command, true).ConfigureAwait(false);
                     if (response == null)
