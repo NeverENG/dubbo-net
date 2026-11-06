@@ -125,15 +125,17 @@ internal sealed record TestEndpointOptions(
         }
     }
 
-    public async Task<IPAddress[]> ResolveProviderAddressesAsync()
+    public async Task<IPAddress[]> ResolveProviderAddressesAsync(
+        Func<string, Task<IPAddress[]>>? resolveHost = null)
     {
         // macOS can return local interface addresses for "localhost"; the test provider
         // must stay on loopback even when host-name resolution behaves that way.
+        resolveHost ??= Dns.GetHostAddressesAsync;
         IPAddress[] addresses = IPAddress.TryParse(ProviderHost, out IPAddress? address)
             ? new[] { address }
             : string.Equals(ProviderHost, "localhost", StringComparison.OrdinalIgnoreCase)
                 ? new[] { IPAddress.Loopback, IPAddress.IPv6Loopback }
-                : await Dns.GetHostAddressesAsync(ProviderHost);
+                : await resolveHost(ProviderHost);
         addresses = addresses.Where(item => item.AddressFamily is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6)
             .OrderBy(item => item.AddressFamily == AddressFamily.InterNetwork ? 0 : 1).ToArray();
         return addresses.Length > 0 ? addresses
