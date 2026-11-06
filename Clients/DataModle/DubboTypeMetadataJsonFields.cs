@@ -18,7 +18,8 @@
 namespace DubboNet.Clients.DataModle
 {
     /// <summary>
-    /// FullServiceDefinition type fields shared by JSON attributes, the reader and the writer.
+    /// FullServiceDefinition 类型字段，由 JSON 特性、读取器和写入器共享。
+    /// <para>EN: FullServiceDefinition type fields shared by JSON attributes, the reader and the writer.</para>
     /// </summary>
     internal static class DubboTypeMetadataJsonFields
     {

@@ -18,7 +18,8 @@
 namespace DubboNet.Clients.Metadata
 {
     /// <summary>
-    /// Metadata defaults are independent of Nacos Naming and ZooKeeper registry defaults.
+    /// Metadata 默认值与 Nacos Naming、ZooKeeper 注册目录默认值分别管理。
+    /// <para>EN: Metadata defaults are independent of Nacos Naming and ZooKeeper registry defaults.</para>
     /// </summary>
     internal static class DubboMetadataDefaults
     {

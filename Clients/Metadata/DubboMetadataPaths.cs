@@ -18,7 +18,8 @@
 namespace DubboNet.Clients.Metadata
 {
     /// <summary>
-    /// Segments of the ZooKeeper FullServiceDefinition location.
+    /// ZooKeeper 中 FullServiceDefinition 元数据路径的固定片段。
+    /// <para>EN: Fixed segments of the ZooKeeper FullServiceDefinition location.</para>
     /// </summary>
     internal static class DubboMetadataPaths
     {
