@@ -50,6 +50,35 @@ public class MyNacosTest
     }
 
     [Fact]
+    public async Task OmittedNamingGroup_QueriesDefaultGroupButKeepsMetadataGroupDistinct()
+    {
+        var server = new FakeNacos();
+        server.Add("1", 20880);
+        using MyNacos nacos = server.CreateClient();
+
+        Assert.Equal(new[] { Service }, await nacos.ListServicesAsync());
+        Assert.Equal(new[] { "providers:com.example.Service:1:g" }, await nacos.ListNacosServicesAsync());
+        Assert.Single(await nacos.GetServiceInstancesAsync("providers:com.example.Service:1:g"));
+        Assert.Single(await nacos.GetProvidersAsync(Service));
+        Assert.All(server.QueriedGroups, group => Assert.Equal("DEFAULT_GROUP", group));
+        Assert.Equal(5, server.QueriedGroups.Count);
+        Assert.Equal(("DEFAULT_GROUP", "dubbo"), DubboClient.ResolveRegistryPaths(true, true,
+            new DubboClient.DubboClientConf()));
+        Assert.Equal("dubbo", MyNacos.NormalizeGroup(null));
+    }
+
+    [Fact]
+    public async Task ConfigDefaultGroup_DoesNotReuseDubboMetadataGroup()
+    {
+        var server = new FakeNacos { ConfigContent = "value" };
+        using MyNacos nacos = server.CreateClient();
+
+        Assert.Equal("value", await nacos.GetConfigAsync("data-id"));
+        Assert.True(await nacos.ConfigExistsAsync("data-id", " /custom/ "));
+        Assert.Equal(new[] { "DEFAULT_GROUP", "custom" }, server.ConfigQueriedGroups);
+    }
+
+    [Fact]
     public async Task DiscoveryPreservesSameSocketVersionsGroupsAndProtocols()
     {
         var server = new FakeNacos();
@@ -484,6 +513,8 @@ public class MyNacosTest
     private sealed class FakeNacos
     {
         public List<string> Services { get; } = new();
+        public List<string> QueriedGroups { get; } = new();
+        public List<string> ConfigQueriedGroups { get; } = new();
         public Dictionary<string, List<Instance>> Instances { get; } = new();
         public Dictionary<string, IEventListener> NamingListeners { get; } = new();
         public IListener? ConfigListener;
@@ -499,8 +530,8 @@ public class MyNacosTest
             var naming = DispatchProxy.Create<INacosNamingService, SdkProxy>();
             ((SdkProxy)(object)naming).Handler = (method, args) => method.Name switch
             {
-                "GetServicesOfServer" => Catalog(),
-                "GetAllInstances" => Task.FromResult(Instances.GetValueOrDefault((string)args[0]!) ?? new List<Instance>()),
+                "GetServicesOfServer" => Catalog((string)args[2]!),
+                "GetAllInstances" => FindInstances((string)args[0]!, (string)args[1]!),
                 "GetServerStatus" => Task.FromResult("UP"),
                 "Subscribe" => Subscribe((string)args[0]!, (IEventListener)args[2]!),
                 "Unsubscribe" => Unsubscribe((string)args[0]!),
@@ -511,7 +542,7 @@ public class MyNacosTest
             ((SdkProxy)(object)config).Handler = (method, args) => method.Name switch
             {
                 "GetConfigAndSignListener" => ReadConfig((IListener)args[3]!),
-                "GetConfig" => Task.FromResult(ConfigContent),
+                "GetConfig" => ReadConfigGroup((string)args[1]!),
                 "RemoveListener" => RemoveConfig(),
                 "ShutDown" => Task.CompletedTask,
                 _ => throw new NotSupportedException(method.Name)
@@ -543,8 +574,14 @@ public class MyNacosTest
         {
             foreach (IEventListener listener in NamingListeners.Values.ToArray()) await listener.OnEvent(null!);
         }
-        private Task<ListView<string>> Catalog()
+        private Task<List<Instance>> FindInstances(string name, string group)
         {
+            QueriedGroups.Add(group);
+            return Task.FromResult(Instances.GetValueOrDefault(name) ?? new List<Instance>());
+        }
+        private Task<ListView<string>> Catalog(string group)
+        {
+            QueriedGroups.Add(group);
             CatalogReads++;
             return FailCatalog ? Task.FromException<ListView<string>>(new IOException("offline"))
                 : Task.FromResult(new ListView<string>(Services.Count, Services.ToList()));
@@ -556,6 +593,11 @@ public class MyNacosTest
             return Task.CompletedTask;
         }
         private Task Unsubscribe(string name) { NamingListeners.Remove(name); return Task.CompletedTask; }
+        private Task<string?> ReadConfigGroup(string group)
+        {
+            ConfigQueriedGroups.Add(group);
+            return Task.FromResult(ConfigContent);
+        }
         private Task<string?> ReadConfig(IListener listener)
         {
             ConfigReads++;

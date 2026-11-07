@@ -381,7 +381,7 @@ namespace DubboNet.Clients.RegistryClient
                 cancellationToken).ConfigureAwait(false);
             return services
                 .Where(service => ExtractDubboInterfaceName(service.Name) != null)
-                .Select(service => NormalizeGroup(service.GroupName, "DEFAULT_GROUP"))
+                .Select(service => NormalizeGroup(service.GroupName, NacosRegistryDefaults.DefaultGroup))
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(group => group, StringComparer.Ordinal)
                 .ToArray();
@@ -395,7 +395,7 @@ namespace DubboNet.Clients.RegistryClient
         /// <param name="cancellationToken">取消令牌。<para>EN: Cancellation token.</para></param>
         /// <returns>按名称排序且去重的接口名。<para>EN: Distinct interface names ordered by name.</para></returns>
         public async Task<IReadOnlyList<string>> ListServicesAsync(
-            string registryRoot = "DEFAULT_GROUP",
+            string registryRoot = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             IReadOnlyList<string> names = await ListNacosServicesAsync(
@@ -458,11 +458,11 @@ namespace DubboNet.Clients.RegistryClient
         /// <param name="cancellationToken">取消令牌。<para>EN: Cancellation token.</para></param>
         /// <returns>原始 Nacos 服务名。<para>EN: Raw Nacos service names.</para></returns>
         public async Task<IReadOnlyList<string>> ListNacosServicesAsync(
-            string registryRoot = "DEFAULT_GROUP",
+            string registryRoot = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            string group = NormalizeGroup(registryRoot, "DEFAULT_GROUP");
+            string group = NormalizeGroup(registryRoot, NacosRegistryDefaults.DefaultGroup);
             return await GetRawServiceNamesAsync(group, cancellationToken).ConfigureAwait(false);
         }
 
@@ -476,7 +476,7 @@ namespace DubboNet.Clients.RegistryClient
         /// <returns>实例快照。<para>EN: Instance snapshots.</para></returns>
         public async Task<IReadOnlyList<NacosServiceInstanceInfo>> GetServiceInstancesAsync(
             string nacosServiceName,
-            string registryRoot = "DEFAULT_GROUP",
+            string registryRoot = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -484,7 +484,7 @@ namespace DubboNet.Clients.RegistryClient
             {
                 throw new ArgumentException("Nacos service name cannot be empty.", nameof(nacosServiceName));
             }
-            string group = NormalizeGroup(registryRoot, "DEFAULT_GROUP");
+            string group = NormalizeGroup(registryRoot, NacosRegistryDefaults.DefaultGroup);
             List<Instance> instances = await _namingService.GetAllInstances(
                     nacosServiceName.Trim(),
                     group,
@@ -506,7 +506,7 @@ namespace DubboNet.Clients.RegistryClient
         /// <returns>可解析的 Provider 端点。<para>EN: Parseable provider endpoints.</para></returns>
         public async Task<IReadOnlyList<DubboServiceEndPointInfo>> GetProvidersAsync(
             string interfaceName,
-            string registryRoot = "DEFAULT_GROUP",
+            string registryRoot = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -514,7 +514,7 @@ namespace DubboNet.Clients.RegistryClient
             {
                 throw new ArgumentException("Dubbo interface name cannot be empty.", nameof(interfaceName));
             }
-            string group = NormalizeGroup(registryRoot, "DEFAULT_GROUP");
+            string group = NormalizeGroup(registryRoot, NacosRegistryDefaults.DefaultGroup);
             IReadOnlyList<string> services = await GetRawServiceNamesAsync(
                 group,
                 cancellationToken).ConfigureAwait(false);
@@ -565,7 +565,7 @@ namespace DubboNet.Clients.RegistryClient
             if (subscriber == null) throw new ArgumentNullException(nameof(subscriber));
             if (changed == null) throw new ArgumentNullException(nameof(changed));
             string serviceName = nacosServiceName.Trim();
-            string group = NormalizeGroup(registryRoot, "DEFAULT_GROUP");
+            string group = NormalizeGroup(registryRoot, NacosRegistryDefaults.DefaultGroup);
             string key = group + "\n" + serviceName;
             await _subscriptionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -617,14 +617,14 @@ namespace DubboNet.Clients.RegistryClient
         /// <param name="cancellationToken">取消令牌。<para>EN: Cancellation token.</para></param>
         /// <returns>表示连接测试的任务。<para>EN: A task representing the connectivity test.</para></returns>
         public async Task TestConnectionAsync(
-            string registryRoot = "DEFAULT_GROUP",
+            string registryRoot = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
             await _namingService.GetServicesOfServer(
                     1,
                     1,
-                    NormalizeGroup(registryRoot, "DEFAULT_GROUP"))
+                    NormalizeGroup(registryRoot, NacosRegistryDefaults.DefaultGroup))
                 .WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -650,7 +650,7 @@ namespace DubboNet.Clients.RegistryClient
         /// <returns>配置正文；不存在时为 <see langword="null"/>。<para>EN: Config content, or <see langword="null"/> when absent.</para></returns>
         public Task<string> GetConfigAsync(
             string dataId,
-            string groupName = "DEFAULT_GROUP",
+            string groupName = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -658,7 +658,7 @@ namespace DubboNet.Clients.RegistryClient
                 throw new ArgumentException("Nacos Config dataId cannot be empty.", nameof(dataId));
             return _configService.GetConfig(
                     dataId.Trim(),
-                    NormalizeGroup(groupName, "DEFAULT_GROUP"),
+                    NormalizeGroup(groupName, NacosRegistryDefaults.DefaultGroup),
                     ConfigTimeoutMilliseconds)
                 .WaitAsync(cancellationToken);
         }
@@ -673,7 +673,7 @@ namespace DubboNet.Clients.RegistryClient
         /// <returns>存在时为 <see langword="true"/>。<para>EN: <see langword="true"/> when the entry exists.</para></returns>
         public async Task<bool> ConfigExistsAsync(
             string dataId,
-            string groupName = "DEFAULT_GROUP",
+            string groupName = NacosRegistryDefaults.DefaultGroup,
             CancellationToken cancellationToken = default) =>
             await GetConfigAsync(dataId, groupName, cancellationToken).ConfigureAwait(false) != null;
 
@@ -701,7 +701,7 @@ namespace DubboNet.Clients.RegistryClient
             if (changed == null) throw new ArgumentNullException(nameof(changed));
             ConfigSubscription subscription = await EnsureConfigSubscriptionAsync(
                 dataId.Trim(),
-                NormalizeGroup(groupName, "DEFAULT_GROUP"),
+                NormalizeGroup(groupName, NacosRegistryDefaults.DefaultGroup),
                 subscriber,
                 changed,
                 cancellationToken).ConfigureAwait(false);
@@ -741,7 +741,7 @@ namespace DubboNet.Clients.RegistryClient
             {
                 throw new ArgumentException("Dubbo interface name cannot be empty.", nameof(interfaceName));
             }
-            string effectiveGroup = NormalizeGroup(registryGroup, "DEFAULT_GROUP");
+            string effectiveGroup = NormalizeGroup(registryGroup, NacosRegistryDefaults.DefaultGroup);
             List<string> matchingServices = await FindProviderServicesAsync(
                 interfaceName,
                 effectiveGroup).ConfigureAwait(false);
@@ -792,7 +792,7 @@ namespace DubboNet.Clients.RegistryClient
                 application
             });
             return MetadataLocationPrefix
-                + Uri.EscapeDataString(NormalizeGroup(metadataGroup))
+                + Uri.EscapeDataString(NormalizeGroup(metadataGroup, "dubbo"))
                 + "/"
                 + Uri.EscapeDataString(dataId);
         }
@@ -887,6 +887,8 @@ namespace DubboNet.Clients.RegistryClient
             }
         }
 
+        // Preserve the public optional argument for existing callers; internal callers
+        // must specify their Naming/Config or metadata default explicitly.
         public static string NormalizeGroup(string rootPath, string defaultGroup = "dubbo")
         {
             string normalized = string.IsNullOrWhiteSpace(rootPath) ? defaultGroup : rootPath.Trim();
@@ -1396,7 +1398,7 @@ namespace DubboNet.Clients.RegistryClient
                         Name = name,
                         GroupName = NormalizeGroup(
                             GetJsonString(item, "groupName"),
-                            "DEFAULT_GROUP"),
+                            NacosRegistryDefaults.DefaultGroup),
                         ClusterCount = GetJsonInt32(item, "clusterCount") ?? 0,
                         InstanceCount = GetJsonInt32(item, "ipCount") ?? 0,
                         HealthyInstanceCount = GetJsonInt32(item, "healthyInstanceCount") ?? 0
