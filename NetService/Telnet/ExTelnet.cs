@@ -353,7 +353,7 @@ namespace NetService.Telnet
             }
 
             byte[] heartbeatData = beatData == null || beatData.Length == 0
-                ? new byte[] { 0x0d, 0x0a }
+                ? Encoding.ASCII.GetBytes(TelnetOptionHelper.ENDOFLINE)
                 : (byte[])beatData.Clone();
             Timer oldTimer;
             lock (telnetHeartbeatLock)

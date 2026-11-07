@@ -539,7 +539,8 @@ namespace DubboNet.DubboService
             {
                 throw new ArgumentException("[GetDubboServiceFuncAsync] serviceName is empty");
             }
-            TelnetRequestResult tempResult = await SendCommandAsync($"ls -l {serviceName}",true);
+            TelnetRequestResult tempResult = await SendCommandAsync(
+                DubboTelnetServiceProbeCommands.ListServiceMethods(serviceName), true);
             if (tempResult == null || string.IsNullOrEmpty(tempResult.Result))
             {
                 NowErrorMes = "[GetDubboServiceFuncAsync] tempResult or tempResult.Result is NullOrEmpty";

@@ -176,10 +176,9 @@ namespace DubboNet.Clients
                         continue;
                     }
 
+                    string command = DubboTelnetServiceProbeCommands.ListServiceMethods(serviceName);
                     NetService.Telnet.ExTelnet.TelnetRequestResult response =
-                        await actuator.SendCommandAsync(
-                            $"ls -l {serviceName}",
-                            true).ConfigureAwait(false);
+                        await actuator.SendCommandAsync(command, true).ConfigureAwait(false);
                     if (response == null)
                     {
                         failures.Add(
@@ -201,7 +200,7 @@ namespace DubboNet.Clients
                     if (methods.Count == 0)
                     {
                         failures.Add(
-                            $"{provider.EndPoint}: 'ls -l {serviceName}' returned no parseable method signatures");
+                            $"{provider.EndPoint}: '{command}' returned no parseable method signatures");
                         continue;
                     }
 

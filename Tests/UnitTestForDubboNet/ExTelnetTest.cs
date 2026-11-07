@@ -61,6 +61,21 @@ namespace UnitTestForDubboNet
         }
 
         [Fact]
+        public void DefaultHeartbeat_UsesTelnetCrLfWithoutSharingMutablePayload()
+        {
+            using ExTelnet telnet = new ExTelnet("127.0.0.1", 23);
+            FieldInfo field = typeof(ExTelnet).GetField("_telnetBeatData", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            telnet.SetTelnetHeartbeat(60_000);
+            byte[] firstPayload = Assert.IsType<byte[]>(field.GetValue(telnet));
+            Assert.Equal(new byte[] { 13, 10 }, firstPayload);
+            firstPayload[0] = 0;
+
+            telnet.SetTelnetHeartbeat(60_000);
+            Assert.Equal(new byte[] { 13, 10 }, Assert.IsType<byte[]>(field.GetValue(telnet)));
+        }
+
+        [Fact]
         public void HeartbeatUsesCustomDataAndCanBeDisabled()
         {
             using ExTelnet telnet = new ExTelnet("127.0.0.1", 23);
