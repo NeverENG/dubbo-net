@@ -164,12 +164,18 @@ public class TestEndpointOptionsTest
         Assert.True(Parse("--help").ShowHelp);
     }
 
-    [Fact]
-    public async Task LocalhostResolvesBeforeTheIpOnlyNativeConstructorIsUsed()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("localhost")]
+    [InlineData("LOCALHOST")]
+    public async Task LocalhostAlwaysUsesLoopbackBeforeTheIpOnlyNativeConstructorIsUsed(string? host)
     {
-        IPAddress[] addresses = await Parse().ResolveProviderAddressesAsync();
-        Assert.NotEmpty(addresses);
-        Assert.All(addresses, address => Assert.True(IPAddress.IsLoopback(address)));
+        TestEndpointOptions options = host == null ? Parse() : Parse("--provider-host", host);
+        // Simulate a resolver that returns a non-loopback address for localhost.
+        // The test must fail if localhost ever reaches DNS, regardless of CI hosts setup.
+        IPAddress[] addresses = await options.ResolveProviderAddressesAsync(_ =>
+            Task.FromResult(new[] { IPAddress.Parse("192.0.2.10") }));
+        Assert.Equal(new[] { IPAddress.Loopback, IPAddress.IPv6Loopback }, addresses);
         using var suite = new NativeDubboActuatorSuite(new IPEndPoint(addresses[0], 20880));
     }
 
@@ -178,7 +184,8 @@ public class TestEndpointOptionsTest
     [InlineData("::1")]
     public async Task LiteralProviderAddressesDoNotRequireDns(string host)
     {
-        Assert.Equal(IPAddress.Parse(host), Assert.Single(await Parse("--host", host).ResolveProviderAddressesAsync()));
+        Assert.Equal(IPAddress.Parse(host), Assert.Single(await Parse("--host", host)
+            .ResolveProviderAddressesAsync(_ => throw new InvalidOperationException("Literal IP must not use DNS."))));
     }
 
     [Fact]
