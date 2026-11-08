@@ -2,7 +2,7 @@
 
 [中文](../zh/index.md) · [User guide](../../README.md) · [Language selector](../index.md)
 
-- [Code-reading route](code-map.md): from client entry through metadata, Provider discovery, selection, and transport; not a mandatory pipeline on every request.
+- [Code-reading route](architecture/index.md): from client entry through metadata, Provider discovery, selection, and transport; not a mandatory pipeline on every request.
 - [Dubbo2 native TCP protocol](protocols/native-dubbo.md): frames, generic Hessian2 calls, and current boundaries.
 - [First-phase Triple protocol](protocols/triple.md): HTTP/JSON requests, limits, and compatibility.
 - [RFC conventions](rfc.md): how to record architecture decisions; actual changes belong in Issues, PRs, and Git.

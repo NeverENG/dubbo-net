@@ -2,7 +2,7 @@
 
 [English](../en/index.md) · [使用手册](../../readme_cn.md) · [语言选择](../index.md)
 
-- [代码阅读路线](code-map.md)：从调用入口读到元数据、Provider 发现、选择与传输；这不是每次请求必经的流水线。
+- [代码阅读路线](architecture/index.md)：从调用入口读到元数据、Provider 发现、选择与传输；这不是每次请求必经的流水线。
 - [Dubbo2 原生 TCP 协议](protocols/native-dubbo.md)：帧、Hessian2 泛化调用和当前边界。
 - [Triple 第一期协议](protocols/triple.md)：HTTP/JSON 请求、限制与兼容性。
 - [RFC 约定](rfc.md)：架构决策如何记录；实际变更以 Issue、PR 和 Git 为准。
