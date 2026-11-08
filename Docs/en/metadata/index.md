@@ -1,14 +1,20 @@
-# Metadata: resolving Java signatures without an interface JAR
+# Metadata: knowing the Java signature before a call
 
 [Code map](../index.md) · [中文](../../zh/metadata/index.md)
 
-If you pass a C# integer to `getJob`, the client still needs the corresponding **Java parameter type** to prepare a `DubboInvocation`. Metadata supplies method and type definitions; it neither holds callable Provider connections nor sends business requests. `DubboMetadataManager` currently lives under `Clients/`. That location describes the code today, not a future ownership rule.
+A .NET caller often does not have the Java interface JAR. Suppose the application passes an integer to `getJob`: the client still needs its **Java parameter type**, and the C# argument alone may not identify the right overload. Metadata answers “which methods does this service expose, and what types do they accept?” It supplies definitions for an invocation; it does not select a business Provider or send the request.
 
-## Where it comes from and where it goes
+## Where it fits in a call
 
-The client requests a signature when it needs to infer types. The manager uses [discovery](../registry/index.md) to locate Provider information, reads the metadata center, or attempts Provider Telnet under the current strategy. A resolver chooses Java parameter types using the method name and arguments; the client uses them to construct an invocation. Cached definitions may be refreshed after registry or metadata changes. The call may also consult metadata later to decide whether an overloaded method requires `dubbo://`. Explicit types skip **inference**, not necessarily all metadata checks.
+When the caller has not supplied Java types, `DubboClient` passes the service, method and arguments into metadata handling. `DubboMetadataManager` obtains and caches service definitions; `DubboMethodMetadataResolver` selects a parameter signature. The client uses that signature to build a `DubboInvocation`, then continues to [service selection](../selection/index.md) and [transport](../transport/index.md). **Callers do not need to query metadata themselves first.**
 
-To inspect a method's signatures, use the public API rather than constructing the manager:
+To find definitions, the manager first gets Provider information via [registry discovery](../registry/index.md), then reads the metadata center when appropriate. If it cannot obtain method definitions there, it can try Provider Telnet. The metadata center can share the registry connection or be configured separately. Provider or metadata changes can refresh cached definitions through listeners. Discovering a Provider here is about **finding definitions**; it does not itself create a service driver for business calls.
+
+If a signature needed for inference is unavailable or ambiguous, supply exact Java types; such calls may raise `DubboMetadataException` before dispatch. Explicit types skip inference, but the client may still try metadata to decide whether an overloaded method requires native Dubbo. Failure of this best-effort compatibility check does not make metadata a hard dependency for an explicitly typed call.
+
+## If you want to inspect signatures
+
+Use the public `DubboClient` API; there is no need to construct the internal manager. The address, interface and method below are examples; replace them with a reachable service when running it:
 
 ```csharp
 using DubboNet.Clients;
@@ -18,6 +24,6 @@ var methods = await client.GetMethodMetadataAsync(
     "com.foo.JobService#getJob");
 ```
 
-`GetServiceMethodsMetadataAsync` lists service methods; `GetServiceTypesMetadataAsync` reads type definitions (Telnet cannot supply types). Missing or ambiguous signatures block required inference. In that case provide exact Java types as shown in the [metadata user guide](../../../README.md#metadata-strategy-and-cache); the compatibility check on an explicitly typed call is a separate, best-effort path.
+`GetMethodMetadataAsync` returns discovered signatures for this method. `GetServiceMethodsMetadataAsync` lists the service's methods; `GetServiceTypesMetadataAsync` reads type definitions. The last API needs a metadata center: Telnet cannot provide type definitions. See the [metadata user guide](../../../README.md#metadata-strategy-and-cache) for configuration and explicit argument types.
 
-**Follow the code:** [manager](../../../Clients/DubboMetadataManager.cs), [signature resolver](../../../Clients/DubboMethodMetadataResolver.cs), [Telnet fallback](../../../Clients/DubboTelnetMetadataResolver.cs); compare [metadata tests](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs) and [contract tests](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs).
+**Check the implementation:** [client entry](../../../Clients/DubboClient.cs), [manager](../../../Clients/DubboMetadataManager.cs), [signature resolver](../../../Clients/DubboMethodMetadataResolver.cs); [metadata tests](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs) and [contract tests](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs). The manager currently lives under `Clients/`; this describes today's layout, not a future ownership rule.
