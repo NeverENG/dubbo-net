@@ -1,14 +1,10 @@
-# Where to start with DubboNet
+# DubboNet English Documentation
 
-[中文](../zh/index.md) · [User guide](../../README.md)
+[中文](../zh/index.md) · [User guide](../../README.md) · [Language selector](../index.md)
 
-DubboNet primarily lets a .NET application **call a remote Java Provider**. To follow a `QueryAsync` call, start at the [client entry point](client/index.md), then read its downstream pieces:
+- [Code-reading route](code-map.md): from client entry through metadata, Provider discovery, selection, and transport; not a mandatory pipeline on every request.
+- [Dubbo2 native TCP protocol](protocols/native-dubbo.md): frames, generic Hessian2 calls, and current boundaries.
+- [First-phase Triple protocol](protocols/triple.md): HTTP/JSON requests, limits, and compatibility.
+- [RFC conventions](rfc.md): how to record architecture decisions; actual changes belong in Issues, PRs, and Git.
 
-1. [Metadata and signatures](metadata/index.md): prepare an invocation when Java parameter types are unknown.
-2. [Registry and discovery](registry/index.md): find Providers and track address changes.
-3. [Service selection](selection/index.md): choose among Providers and protect in-flight calls.
-4. [Protocol transports](transport/index.md): send over Dubbo TCP or Triple and read the result.
-
-This is a **reading route**, not a fixed sequence on every request. A metadata lookup may itself need Provider discovery, and calls to known services need not discover them again each time. Registry changes update state through a separate callback path.
-
-To run code, use the [user guide](../../README.md). For design history, see the [RFC conventions](../RFC.md) and [changelog](../../CHANGELOG.md). The [end-to-end test guide](../../Tests/EndToEndTestEnvironment/README.md) describes the Java Provider fixture, not a .NET server implementation.
+To run code, start with the [user guide](../../README.md). The [end-to-end environment guide](../../Tests/EndToEndTestEnvironment/README.md) covers the Java Provider test fixture, not a .NET server implementation. The [changelog](../../CHANGELOG.md) indexes verified Git history.

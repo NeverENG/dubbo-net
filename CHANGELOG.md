@@ -1,8 +1,8 @@
 # Changelog / 变更索引
 
-This file is a Git index, not a second implementation history. Each link below resolves to a merged PR or Git object; source and tests remain the authority for current behavior. For usage, see the [English README](README.md) or [中文 README](readme_cn.md); for code-reading routes, see [English](Docs/en/index.md) and [中文](Docs/zh/index.md). Design rationale belongs in the [RFC convention](Docs/RFC.md) and future decision-specific RFCs.
+This file is a Git index, not a second implementation history. Each link below resolves to a merged PR or Git object; source and tests remain the authority for current behavior. For usage, see the [English README](README.md) or [中文 README](readme_cn.md); for code-reading routes, see [English](Docs/en/code-map.md) and [中文](Docs/zh/code-map.md). Design rationale belongs in the [RFC convention](Docs/en/rfc.md) and future decision-specific RFCs.
 
-本文件只提供 Git 索引，不重复编写实施过程。下列链接均指向已合并 PR 或 Git 对象；当前行为仍以源码和测试为准。使用说明参见英文或中文 README，读代码从中英文代码地图进入，架构取舍参见 RFC。
+本文件只提供 Git 索引，不重复编写实施过程。下列链接均指向已合并 PR 或 Git 对象；当前行为仍以源码和测试为准。使用说明参见英文或中文 README，读代码从中英文代码地图进入，架构取舍参见 [RFC 约定](Docs/zh/rfc.md)。
 
 ## Unreleased / 未发布
 
