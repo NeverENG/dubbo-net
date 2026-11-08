@@ -410,10 +410,14 @@ namespace DubboNet.Clients
                 _dubboClientZookeeperWatcher = new DubboClientZookeeperWatcher(this);
             }
             _providerDiscovery = new ProviderDiscovery(
-                _innerMyZookeeper, _innerMyNacos, DubboRootPath, this,
+                _innerMyZookeeper, _innerMyNacos, DubboRootPath,
                 _dubboClientZookeeperWatcher, HandleNacosProviderChangedAsync,
-                () => InnerRegistryState == RegistryState.LostConnect || InnerRegistryState == RegistryState.DisConnect,
-                () => ReLoadDubboDriverCollection());
+                () =>
+                {
+                    if (InnerRegistryState == RegistryState.LostConnect
+                        || InnerRegistryState == RegistryState.DisConnect)
+                        _ = ReLoadDubboDriverCollection();
+                });
             _dubboDriverCollection = new DubboDriverCollection(_retainDubboActuatorSuiteCollection, new DubboDriverCollection.DubboDriverCollectionConf()
             {
                 DefaultServiceName = DefaultServiceName,
@@ -629,7 +633,8 @@ namespace DubboNet.Clients
             DubboInvocation effectiveInvocation = invocation;
             if (invocation.ParameterTypes == null || invocation.ParameterTypes.Count == 0)
             {
-                effectiveInvocation = await CreateMetadataInvocationAsync(
+                effectiveInvocation = await DubboInvocationMetadataResolver.CreateAsync(
+                    _metadataManager,
                     invocation.Service,
                     invocation.Method,
                     invocation.Arguments ?? Array.Empty<object>(),
@@ -667,7 +672,8 @@ namespace DubboNet.Clients
             IReadOnlyList<object> arguments)
         {
             Tuple<string, string> endpoint = GetSeviceNameFormFuncEndPoint(funcEndPoint);
-            DubboInvocation invocation = await CreateMetadataInvocationAsync(
+            DubboInvocation invocation = await DubboInvocationMetadataResolver.CreateAsync(
+                _metadataManager,
                 endpoint.Item1,
                 endpoint.Item2,
                 arguments ?? Array.Empty<object>()).ConfigureAwait(false);
@@ -766,102 +772,6 @@ namespace DubboNet.Clients
             IReadOnlyList<DubboTypeMetadata> types =
                 await _metadataManager.GetServiceTypesAsync(serviceName).ConfigureAwait(false);
             return types.Select(type => type.CloneForCaller()).ToArray();
-        }
-
-        private async Task<DubboInvocation> CreateMetadataInvocationAsync(
-            string serviceName,
-            string methodName,
-            IReadOnlyList<object> arguments,
-            DubboInvocation source = null)
-        {
-            if (string.IsNullOrWhiteSpace(serviceName)
-                || string.IsNullOrWhiteSpace(methodName))
-            {
-                throw new ArgumentException("Can not find the Dubbo service or method name.");
-            }
-
-            IReadOnlyList<DubboMethodMetadata> methods;
-            try
-            {
-                methods = await _metadataManager.GetServiceMethodsAsync(serviceName)
-                    .ConfigureAwait(false);
-            }
-            catch (DubboMetadataException) when (arguments.Count == 0)
-            {
-                // A no-argument invocation has one exact parameter signature: the empty array.
-                // Keep the missing-node watch registered by the metadata manager, but do not
-                // require metadata merely to send a signature that cannot be ambiguous by type.
-                return new DubboInvocation(
-                    serviceName,
-                    methodName,
-                    Array.Empty<string>(),
-                    arguments)
-                {
-                    Version = source?.Version,
-                    Group = source?.Group,
-                    Attachments = source?.Attachments
-                };
-            }
-            catch (DubboMetadataException exception)
-            {
-                throw new DubboMetadataException(
-                    $"{exception.Message} Requested endpoint: '{serviceName}.{methodName}'. " +
-                    $"Use QueryAsync(\"{serviceName}.{methodName}\", " +
-                    "new[] { \"<exact-java-type>\" }, new object[] { argument }) to retry explicitly.",
-                    exception);
-            }
-            DubboMethodMetadata resolved;
-            try
-            {
-                resolved = DubboMethodMetadataResolver.Resolve(
-                    serviceName,
-                    methodName,
-                    methods,
-                    arguments);
-            }
-            catch (DubboMetadataException centerResolutionException)
-                when (methods.Any(method =>
-                    method.MetadataSource == DubboMetadataSource.MetadataCenter))
-            {
-                // A metadata center can be only partially populated during rolling publication or
-                // when several provider applications expose the same interface. Supplement an
-                // unresolved center result with the same one-time, service-level Telnet probe.
-                DubboTelnetMetadataResult telnet =
-                    await _metadataManager.GetTelnetServiceMetadataAsync(serviceName)
-                        .ConfigureAwait(false);
-                if (telnet.Methods.Count == 0)
-                {
-                    throw new DubboMetadataException(
-                        $"{centerResolutionException.Message} The metadata-center definition " +
-                        $"could not resolve this invocation, and Telnet fallback could not " +
-                        $"supplement it: {telnet.FailureReason}. " +
-                        $"Use QueryAsync(\"{serviceName}.{methodName}\", " +
-                        "new[] { \"<exact-java-type>\" }, new object[] { argument }) to retry explicitly.",
-                        centerResolutionException);
-                }
-
-                IReadOnlyList<DubboMethodMetadata> combined = methods
-                    .Concat(telnet.Methods)
-                    .GroupBy(DubboMethodMetadataResolver.SignatureKey, StringComparer.Ordinal)
-                    .Select(group => group.First())
-                    .ToArray();
-                resolved = DubboMethodMetadataResolver.Resolve(
-                    serviceName,
-                    methodName,
-                    combined,
-                    arguments);
-            }
-
-            return new DubboInvocation(
-                serviceName,
-                methodName,
-                resolved.ParameterTypes,
-                arguments)
-            {
-                Version = source?.Version,
-                Group = source?.Group,
-                Attachments = source?.Attachments
-            };
         }
 
         private async Task<DubboRequestResult> QueryInternalAsync(
@@ -1191,21 +1101,10 @@ namespace DubboNet.Clients
             else
             {
                 string nowServiceName = serviceName;
-                if(isFullPath)
+                if (isFullPath && !TryGetServiceNameFromProviderPath(serviceName, out nowServiceName))
                 {
-                    if (serviceName.StartsWith(DubboRootPath)
-                        && serviceName.EndsWith(ZooKeeperRegistryPaths.ProvidersSuffix))
-                    {
-                        nowServiceName = serviceName.Substring(
-                            DubboRootPath.Length,
-                            serviceName.Length - DubboRootPath.Length
-                                - ZooKeeperRegistryPaths.ProvidersSuffix.Length);
-                    }
-                    else
-                    {
-                        MyLogger.LogError($"[ReflushProviderByPathAsync] fail : {serviceName} is error path for Service");
-                        return false;
-                    }
+                    MyLogger.LogError($"[ReflushProviderByPathAsync] fail : {serviceName} is error path for Service");
+                    return false;
                 }
                 bool changed = _dubboDriverCollection.AddDubboServiceDriver(
                     nowServiceName,
@@ -1381,9 +1280,9 @@ namespace DubboNet.Clients
                 if (disposing) _consumerRegistration?.Dispose();
                 else _ = _consumerRegistration?.ReleaseAsync();
                 _consumerRegistration = null;
+                _providerDiscovery?.Dispose();
                 _metadataManager?.Dispose();
                 _metadataManager = null;
-                _innerMyNacos?.RemoveSubscriber(this);
                 if (_metadataRegistryHasSeparateReference)
                 {
                     if (_metadataMyNacos != null)

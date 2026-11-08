@@ -105,6 +105,32 @@ public class MyNacosTest
     }
 
     [Fact]
+    public async Task ProviderDiscovery_DisposeRemovesOnlyItsOwnNamingSubscription()
+    {
+        var server = new FakeNacos();
+        server.Add("1", 20880);
+        using MyNacos nacos = server.CreateClient();
+        int callsA = 0, callsB = 0;
+        using var first = new ProviderDiscovery(null!, nacos, Group, null!,
+            _ => { callsA++; return Task.CompletedTask; }, () => { });
+        using var second = new ProviderDiscovery(null!, nacos, Group, null!,
+            _ => { callsB++; return Task.CompletedTask; }, () => { });
+
+        Assert.Single((await first.GetProviderEndPointsAsync(Service)).EndPoints);
+        Assert.Single((await second.GetProviderEndPointsAsync(Service)).EndPoints);
+        Assert.Equal(1, server.NamingSubscribes);
+        await server.PushNaming();
+        Assert.Equal((1, 1), (callsA, callsB));
+
+        first.Dispose();
+        Assert.Single(server.NamingListeners);
+        await server.PushNaming();
+        Assert.Equal((1, 2), (callsA, callsB));
+        second.Dispose();
+        Assert.Empty(server.NamingListeners);
+    }
+
+    [Fact]
     public void PublicApi_DoesNotExposeNacosSdkTypes()
     {
         Assert.True(typeof(MyNacos).IsPublic);

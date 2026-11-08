@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using MyCommonHelper;
 using org.apache.zookeeper;
@@ -24,37 +23,58 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DubboNet.Clients.RegistryClient
 {
-    // Owns provider discovery and per-service in-flight lookups. The client owns
-    // the registry leases and the callback that publishes changes to drivers/metadata.
-    internal sealed class ProviderDiscovery
+    // Owns this client's Nacos provider subscriptions and in-flight discovery.
+    // The client owns registry leases and its ZooKeeper watcher; the service driver
+    // alone owns callable endpoint state. Metadata has a separate subscriber.
+    internal sealed class ProviderDiscovery : IDisposable
     {
         private readonly MyZookeeper _zookeeper;
         private readonly MyNacos _nacos;
         private readonly string _rootPath;
-        private readonly object _subscriber;
-        private readonly DubboClientZookeeperWatcher _watcher;
+        private readonly Watcher _watcher;
         private readonly Func<string, Task> _onNacosChanged;
-        private readonly Func<bool> _shouldReload;
-        private readonly Func<Task> _reload;
-        private readonly ConcurrentDictionary<string, Task<DubboServiceEndPointInfos>> _inFlight = new();
+        private readonly Action _onRegistryRecovered;
+        private readonly Func<string, bool, Task<DubboServiceEndPointInfos>> _lookup;
+        private readonly ConcurrentDictionary<(string Service, bool FullPath), Lazy<Task<DubboServiceEndPointInfos>>> _inFlight = new();
+        private int _disposed;
 
         internal ProviderDiscovery(MyZookeeper zookeeper, MyNacos nacos, string rootPath,
-            object subscriber, DubboClientZookeeperWatcher watcher, Func<string, Task> onNacosChanged,
-            Func<bool> shouldReload, Func<Task> reload)
+            Watcher watcher, Func<string, Task> onNacosChanged, Action onRegistryRecovered)
         {
             _zookeeper = zookeeper;
             _nacos = nacos;
             _rootPath = rootPath;
-            _subscriber = subscriber;
             _watcher = watcher;
             _onNacosChanged = onNacosChanged;
-            _shouldReload = shouldReload;
-            _reload = reload;
+            _onRegistryRecovered = onRegistryRecovered;
+            _lookup = DiscoverAsync;
         }
+
+        // Isolate single-flight behavior in tests without connecting to a registry.
+        internal ProviderDiscovery(Func<string, bool, Task<DubboServiceEndPointInfos>> lookup)
+        {
+            _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
+        }
+
+        internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            // Remove only our Nacos Naming subscriptions. Metadata and other
+            // clients have distinct subscriber identities on the shared connection.
+            _nacos?.RemoveSubscriber(this);
+            // ZooKeeper watches are one-shot and have no per-watcher unsubscribe API;
+            // the owning client watcher checks IsDisposed before handling callbacks.
+        }
+
+        private Task OnNacosChangedAsync(string serviceName) =>
+            IsDisposed ? Task.CompletedTask : _onNacosChanged(serviceName);
 
         internal bool TryGetServiceNameFromProviderPath(
             string providerPath,
@@ -76,20 +96,22 @@ namespace DubboNet.Clients.RegistryClient
 
         internal async Task<DubboServiceEndPointInfos> GetProviderEndPointsAsync(string serviceName, bool isFullPath = false)
         {
-            Task<DubboServiceEndPointInfos> getProviderEndPointsTask =
-                _inFlight.GetOrAdd(
-                    serviceName,
-                    _ => DiscoverAsync(serviceName, isFullPath));
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            // A Lazy prevents losing GetOrAdd factories from starting duplicate SDK
+            // queries or installing duplicate subscriptions under concurrent calls.
+            (string Service, bool FullPath) key = (serviceName, isFullPath);
+            Lazy<Task<DubboServiceEndPointInfos>> pending = _inFlight.GetOrAdd(key,
+                static (request, owner) => new Lazy<Task<DubboServiceEndPointInfos>>(
+                    () => owner._lookup(request.Service, request.FullPath),
+                    LazyThreadSafetyMode.ExecutionAndPublication), this);
             try
             {
-                return await getProviderEndPointsTask.ConfigureAwait(false);
+                return await pending.Value.ConfigureAwait(false);
             }
             finally
             {
                 _inFlight.TryRemove(
-                    new KeyValuePair<string, Task<DubboServiceEndPointInfos>>(
-                        serviceName,
-                        getProviderEndPointsTask));
+                    new KeyValuePair<(string Service, bool FullPath), Lazy<Task<DubboServiceEndPointInfos>>>(key, pending));
             }
         }
 
@@ -122,8 +144,8 @@ namespace DubboNet.Clients.RegistryClient
                         await _nacos.GetProviderEndPointsAsync(
                             serviceName,
                             _rootPath,
-                            _subscriber,
-                            _onNacosChanged).ConfigureAwait(false);
+                            this,
+                            OnNacosChangedAsync).ConfigureAwait(false);
                     nacosResult.EndPoints.AddRange(endpoints);
                     if (nacosResult.EndPoints.Count == 0)
                     {
@@ -166,10 +188,7 @@ namespace DubboNet.Clients.RegistryClient
             else
             {
                 //注册中心之前已经断开了，现在连接上了，需要重新更新watch
-                if(_shouldReload())
-                {
-                    _ = _reload();
-                }
+                _onRegistryRecovered?.Invoke();
 
                 ChildrenResult childrenResult = await _zookeeper.GetChildrenAsync(nowFullPath,_watcher).ConfigureAwait(false);
                 if (childrenResult == null)
