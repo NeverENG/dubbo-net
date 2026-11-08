@@ -16,6 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
+using DubboNet.DubboService;
 using DubboNet.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using MyCommonHelper;

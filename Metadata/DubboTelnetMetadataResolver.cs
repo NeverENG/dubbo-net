@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.DubboService;
 using MyCommonHelper;

@@ -18,12 +18,23 @@
 using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.Clients.RegistryClient;
+using DubboNet.DubboService;
 using DubboNet.Registry;
 
 namespace UnitTestForDubboNet
 {
     public class ZooKeeperRegistryPathContractTest
     {
+        [Fact]
+        public void SharedProviderUrlContracts_AreOwnedByProtocol()
+        {
+            Assert.Equal("DubboNet.DubboService", typeof(ProviderUrlKeys).Namespace);
+            Assert.Equal("DubboNet.DubboService", typeof(ProviderProtocolSchemes).Namespace);
+            Assert.Equal("interface", ProviderUrlKeys.Interface);
+            Assert.Equal("dubbo", ProviderProtocolSchemes.Dubbo);
+            Assert.Equal("tri", ProviderProtocolSchemes.Tri);
+        }
+
         [Fact]
         public void RegistryImplementationHasItsOwnNamespace_WithoutMovingPublicClients()
         {
