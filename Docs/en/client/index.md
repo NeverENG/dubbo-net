@@ -6,7 +6,7 @@ An application knows which Java method it wants to call, but should not have to 
 
 ## How the request reaches a Provider
 
-Consider `com.foo.JobService#getJob`. With explicit Java parameter types, the client can prepare an invocation directly; without them, it asks [Metadata](../metadata/index.md) to infer the signature. Once it has a `DubboInvocation`, it checks overload/protocol restrictions when needed. For a known service it selects a suite from its driver; on first use it obtains Provider addresses through [discovery](../registry/index.md) and creates a driver. [Service selection](../selection/index.md) then reserves a suite for this call, and [transport](../transport/index.md) sends the request and reads the response.
+Consider `com.foo.JobService#getJob`. With explicit Java parameter types, the client can prepare an invocation directly; without them, it asks [Metadata](../metadata/index.md) to infer the signature. Once it has a `DubboInvocation`, the client checks overload/protocol restrictions when needed, then **selects and reserves** a suite from the service driver (the object holding its callable candidates). If no driver exists yet, it obtains Provider addresses through [discovery](../registry/index.md), creates a driver and retries selection and reservation. Finally [transport](../transport/index.md) sends the request and reads the response; see [service selection](../selection/index.md) for the selection rules.
 
 Provider arrivals and departures trigger a separate refresh callback; they do not issue another `QueryAsync` call. The client retains registry connections, metadata and service drivers across requests, so reuse it within its owning application scope and dispose it at the end.
 

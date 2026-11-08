@@ -16,4 +16,4 @@ Provider 上下线后，ZooKeeper watcher 或 Nacos 回调把变化送回客户�
 
 如果只是诊断 Nacos 目录、不发送 RPC，可以用公开的 `MyNacos.ListServicesAsync` 或 `GetProvidersAsync`；用法见[目录示例](../../../readme_cn.md#直接读取-nacos-服务目录)。目录查询结果本身不是 Driver 的可调用状态。
 
-**核对实现：** [客户端发现入口](../../../Clients/DubboClient.cs)、[ZooKeeper](../../../Clients/RegistryClient/MyZookeeper.cs)、[Nacos](../../../Clients/RegistryClient/MyNacos.cs)、[变化监听](../../../Clients/DubboClientZookeeperWatcher.cs)；[ZooKeeper 测试](../../../Tests/UnitTestForDubboNet/MyZookeeperTest.cs)、[Nacos 测试](../../../Tests/UnitTestForDubboNet/MyNacosTest.cs)与[消费者注册测试](../../../Tests/UnitTestForDubboNet/ConsumerRegistrationTest.cs)。
+**核对实现：** [客户端发现入口](../../../Clients/DubboClient.cs)、[ZooKeeper](../../../Clients/RegistryClient/MyZookeeper.cs)、[Nacos](../../../Clients/RegistryClient/MyNacos.cs)；[注册中心测试](../../../Tests/UnitTestForDubboNet/MyZookeeperTest.cs)与 [Nacos 测试](../../../Tests/UnitTestForDubboNet/MyNacosTest.cs)。

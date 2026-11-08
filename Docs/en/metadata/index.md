@@ -24,6 +24,6 @@ var methods = await client.GetMethodMetadataAsync(
     "com.foo.JobService#getJob");
 ```
 
-`GetMethodMetadataAsync` returns discovered signatures for this method. `GetServiceMethodsMetadataAsync` lists the service's methods; `GetServiceTypesMetadataAsync` reads type definitions. The last API needs a metadata center: Telnet cannot provide type definitions. See the [metadata user guide](../../../README.md#metadata-strategy-and-cache) for configuration and explicit argument types.
+`GetMethodMetadataAsync` returns discovered signatures for this method. Each item's `ParameterTypes` lists Java type names in order, matching the explicit type array passed to `QueryAsync`; an absent method returns an empty list. `GetServiceMethodsMetadataAsync` lists the service's methods; `GetServiceTypesMetadataAsync` reads type definitions and requires a metadata center, since Telnet cannot supply them. See the [metadata user guide](../../../README.md#metadata-strategy-and-cache) for configuration and explicit argument types.
 
 **Check the implementation:** [client entry](../../../Clients/DubboClient.cs), [manager](../../../Clients/DubboMetadataManager.cs), [signature resolver](../../../Clients/DubboMethodMetadataResolver.cs); [metadata tests](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs) and [contract tests](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs). The manager currently lives under `Clients/`; this describes today's layout, not a future ownership rule.

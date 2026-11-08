@@ -27,4 +27,4 @@ using var client = new DubboClient(
 
 `LeastActive` 依据**当前消费者**看到的在途调用量，不表示全局服务端负载。其他策略见[配置说明](../../../readme_cn.md#客户端配置--configuration)，调用方式见[客户端入口](../client/index.md)。
 
-**核对实现：** [Driver 集合](../../../Clients/DubboDriverCollection.cs)、[服务 Driver](../../../Clients/DubboServiceDriver.cs)、[调用预留](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs)；[Driver 测试](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs)、[负载均衡测试](../../../Tests/UnitTestForDubboNet/LoadBalancingTest.cs)与[端点移除回归测试](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs)。
+**核对实现：** [服务 Driver](../../../Clients/DubboServiceDriver.cs)、[调用预留](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs)；[Driver 测试](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs)与[端点移除回归测试](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs)。
