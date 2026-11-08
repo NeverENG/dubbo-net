@@ -16,7 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
-using DubboNet.Clients.Metadata;
+using DubboNet.Metadata;
 using DubboNet.Clients.RegistryClient;
 using DubboNet.DubboService;
 using DubboNet.DubboService.DataModle;

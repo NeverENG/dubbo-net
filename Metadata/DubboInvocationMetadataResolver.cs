@@ -23,7 +23,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DubboNet.Clients.Metadata
+namespace DubboNet.Metadata
 {
     // Turns method definitions into an invocation; it never selects a Provider
     // or owns the business connection. DubboClient keeps dispatch coordination.

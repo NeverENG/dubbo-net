@@ -21,6 +21,7 @@ using System.Reflection;
 using System.Text;
 using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
+using DubboNet.Metadata;
 using DubboNet.Clients.RegistryClient;
 using Nacos.V2;
 using Nacos.V2.Naming;

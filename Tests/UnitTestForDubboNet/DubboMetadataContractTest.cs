@@ -17,7 +17,7 @@
 
 using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
-using DubboNet.Clients.Metadata;
+using DubboNet.Metadata;
 using DubboNet.Clients.RegistryClient;
 using System.Text;
 
@@ -25,6 +25,16 @@ namespace UnitTestForDubboNet
 {
     public class DubboMetadataContractTest
     {
+        [Fact]
+        public void MetadataImplementationHasItsOwnNamespace_WithoutMovingPublicModels()
+        {
+            Assert.Equal("DubboNet.Metadata", typeof(DubboMetadataManager).Namespace);
+            Assert.Equal("DubboNet.Metadata", typeof(DubboInvocationMetadataResolver).Namespace);
+            Assert.Equal("DubboNet.Clients.DataModle", typeof(DubboMethodMetadata).Namespace);
+            Assert.Equal("DubboNet.Clients.DataModle", typeof(DubboTypeMetadata).Namespace);
+            Assert.Equal("DubboNet.Clients.DataModle", typeof(DubboMetadataException).Namespace);
+        }
+
         [Theory]
         [InlineData(false, false, null, null, "/dubbo/", "/dubbo")]
         [InlineData(true, true, null, null, "DEFAULT_GROUP", "dubbo")]

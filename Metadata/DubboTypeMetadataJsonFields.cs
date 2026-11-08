@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace DubboNet.Clients.DataModle
+namespace DubboNet.Metadata
 {
     /// <summary>
     /// FullServiceDefinition 类型字段，由 JSON 特性、读取器和写入器共享。

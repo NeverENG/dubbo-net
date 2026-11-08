@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace DubboNet.Clients.Metadata
+namespace DubboNet.Metadata
 {
     /// <summary>
     /// Metadata 默认值与 Nacos Naming、ZooKeeper 注册目录默认值分别管理。

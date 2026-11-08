@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace DubboNet.Clients.Metadata
+namespace DubboNet.Metadata
 {
     /// <summary>
     /// ZooKeeper 中 FullServiceDefinition 元数据路径的固定片段。
