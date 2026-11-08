@@ -22,13 +22,10 @@ using DubboNet.DubboService;
 using DubboNet.DubboService.DataModle;
 using MyCommonHelper;
 using org.apache.zookeeper;
-using org.apache.zookeeper.data;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Net;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,8 +34,8 @@ using System.Threading.Tasks;
 namespace DubboNet.Clients
 {
     /// <summary>
-    /// Dubbo 客户端，负责服务发现、负载均衡、元数据解析以及请求发送。
-    /// EN: Dubbo client responsible for service discovery, load balancing, metadata resolution, and request dispatch.
+    /// Dubbo 调用入口，协调元数据、服务发现、节点选择和请求发送。
+    /// EN: Entry point that coordinates metadata, discovery, provider selection, and dispatch.
     /// </summary>
     public class DubboClient:IDisposable
     {
@@ -230,7 +227,7 @@ namespace DubboNet.Clients
 
         private Dictionary<DubboEndpointKey, DubboActuatorSuiteEndPintInfo> _retainDubboActuatorSuiteCollection = new Dictionary<DubboEndpointKey, DubboActuatorSuiteEndPintInfo>();
 
-        private ConcurrentDictionary<string, Task<DubboServiceEndPointInfos>> _concurrentGetProviderEndPointsTasks = new ConcurrentDictionary<string, Task<DubboServiceEndPointInfos>>();
+        private ProviderDiscovery _providerDiscovery;
 
         private volatile bool _isInReLoadDubboDriverCollectionTask = false;
 
@@ -412,6 +409,11 @@ namespace DubboNet.Clients
             {
                 _dubboClientZookeeperWatcher = new DubboClientZookeeperWatcher(this);
             }
+            _providerDiscovery = new ProviderDiscovery(
+                _innerMyZookeeper, _innerMyNacos, DubboRootPath, this,
+                _dubboClientZookeeperWatcher, HandleNacosProviderChangedAsync,
+                () => InnerRegistryState == RegistryState.LostConnect || InnerRegistryState == RegistryState.DisConnect,
+                () => ReLoadDubboDriverCollection());
             _dubboDriverCollection = new DubboDriverCollection(_retainDubboActuatorSuiteCollection, new DubboDriverCollection.DubboDriverCollectionConf()
             {
                 DefaultServiceName = DefaultServiceName,
@@ -907,7 +909,7 @@ namespace DubboNet.Clients
             //没有_dubboDriverCollection没有目标服务，尝试添加服务节点 （新的ServiceName都会通过这里将节点添加进来）
             else if (availableDubboActuatorInfo.ResultType == AvailableDubboActuatorInfo.GetDubboActuatorSuiteResultType.NoDubboServiceDriver)
             {
-                DubboServiceEndPointInfos serviceEndPointsInfo = await ConcurrentGetProviderEndPoints(nowServiceName);
+                DubboServiceEndPointInfos serviceEndPointsInfo = await DiscoverProvidersAsync(nowServiceName);
                 if (serviceEndPointsInfo.ErrorInfo != null)
                 {
                     string tempErrorMes = $"[SendRequestAsync] GetSeviceProviderEndPoints fail {nowServiceName} -> {serviceEndPointsInfo.ErrorInfo}";
@@ -929,7 +931,7 @@ namespace DubboNet.Clients
             else if (availableDubboActuatorInfo.ResultType == AvailableDubboActuatorInfo.GetDubboActuatorSuiteResultType.NoActuatorInService)
             {
                 //实际上是有watch会自动更新，这里主动更新一次可以兼容watch异常的情况（这里会触发同一个路径注册2个watch，不过重复的watch只会触发一次）
-                DubboServiceEndPointInfos serviceEndPointsInfo = await ConcurrentGetProviderEndPoints(nowServiceName);
+                DubboServiceEndPointInfos serviceEndPointsInfo = await DiscoverProvidersAsync(nowServiceName);
                 string tempErrorMes = null;
                 if (serviceEndPointsInfo.ErrorInfo != null)
                 {
@@ -1164,7 +1166,7 @@ namespace DubboNet.Clients
         /// <returns></returns>
         internal async Task<bool> ReflushProviderAsync(string serviceName ,bool isFullPath = false)
         {
-            DubboServiceEndPointInfos serviceEndPointsInfo = await ConcurrentGetProviderEndPoints(serviceName,isFullPath);
+            DubboServiceEndPointInfos serviceEndPointsInfo = await DiscoverProvidersAsync(serviceName,isFullPath);
             if (serviceEndPointsInfo.ErrorInfo != null)
             {
                 string unavailableServiceName = serviceName;
@@ -1218,182 +1220,23 @@ namespace DubboNet.Clients
             && (errorInfo.Contains("no provider", StringComparison.OrdinalIgnoreCase)
                 || errorInfo.Contains("no healthy provider", StringComparison.OrdinalIgnoreCase));
 
-        internal bool TryGetServiceNameFromProviderPath(
-            string providerPath,
-            out string serviceName)
-        {
-            serviceName = null;
-            if (string.IsNullOrEmpty(providerPath)
-                || !providerPath.StartsWith(DubboRootPath, StringComparison.Ordinal)
-                || !providerPath.EndsWith(ZooKeeperRegistryPaths.ProvidersSuffix, StringComparison.Ordinal))
-            {
-                return false;
-            }
+        internal bool TryGetServiceNameFromProviderPath(string providerPath, out string serviceName) =>
+            _providerDiscovery.TryGetServiceNameFromProviderPath(providerPath, out serviceName);
 
-            serviceName = providerPath.Substring(
-                DubboRootPath.Length,
-                providerPath.Length - DubboRootPath.Length - ZooKeeperRegistryPaths.ProvidersSuffix.Length);
-            return !string.IsNullOrWhiteSpace(serviceName);
-        }
-
-        /// <summary>
-        /// 对GetSeviceProviderEndPointsAsync重复并发的封装（用于应对短时间并行同时对同一个serviceName节点信息进行获取，同时重复获会耗费不必要的性能，这里会复用可复用的Task完成获取任务）
-        /// EN: Coalesces concurrent provider-discovery calls for the same service into one reusable task.
-        /// </summary>
-        /// <param name="serviceName"></param>
-        /// <param name="isFullPath"></param>
-        /// <returns></returns>
-        private async Task<DubboServiceEndPointInfos> ConcurrentGetProviderEndPoints(string serviceName, bool isFullPath = false)
-        {
-            Task<DubboServiceEndPointInfos> getProviderEndPointsTask =
-                _concurrentGetProviderEndPointsTasks.GetOrAdd(
-                    serviceName,
-                    _ => GetSeviceProviderEndPointsAsync(serviceName, isFullPath));
-            try
-            {
-                return await getProviderEndPointsTask.ConfigureAwait(false);
-            }
-            finally
-            {
-                _concurrentGetProviderEndPointsTasks.TryRemove(
-                    new KeyValuePair<string, Task<DubboServiceEndPointInfos>>(
-                        serviceName,
-                        getProviderEndPointsTask));
-            }
-        }
+        private Task<DubboServiceEndPointInfos> DiscoverProvidersAsync(string serviceName, bool isFullPath = false) =>
+            _providerDiscovery.GetProviderEndPointsAsync(serviceName, isFullPath);
 
         private async Task<IReadOnlyList<DubboServiceEndPointInfo>>
             GetProviderEndPointsForMetadataAsync(string serviceName)
         {
             DubboServiceEndPointInfos result =
-                await ConcurrentGetProviderEndPoints(serviceName).ConfigureAwait(false);
+                await DiscoverProvidersAsync(serviceName).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(result.ErrorInfo))
             {
                 throw new DubboMetadataException(
                     $"Can not discover providers for '{serviceName}': {result.ErrorInfo}");
             }
             return result.EndPoints;
-        }
-
-        /// <summary>
-        /// 根据服务名，在注册中心查找服务节点信息(如果服务存在会默认注册_dubboClientZookeeperWatcher，以达到自动更新的目的)
-        /// EN: Discovers provider endpoints in the registry and installs the provider watcher when the service exists.
-        /// </summary>
-        /// <param name="serviceName"></param>
-        /// <param name="isFullPath"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        private async Task<DubboServiceEndPointInfos> GetSeviceProviderEndPointsAsync(string serviceName ,bool isFullPath = false)
-        {
-            if(string.IsNullOrEmpty(serviceName))
-            {
-                throw new ArgumentNullException(nameof(serviceName));
-            }
-            if (_registryUsesNacos)
-            {
-                DubboServiceEndPointInfos nacosResult = new DubboServiceEndPointInfos();
-                if (isFullPath)
-                {
-                    nacosResult.ErrorInfo =
-                        $"Nacos discovery expects a Dubbo interface name instead of a ZooKeeper path: {serviceName}";
-                    return nacosResult;
-                }
-                try
-                {
-                    IReadOnlyList<DubboServiceEndPointInfo> endpoints =
-                        await _innerMyNacos.GetProviderEndPointsAsync(
-                            serviceName,
-                            DubboRootPath,
-                            this,
-                            HandleNacosProviderChangedAsync).ConfigureAwait(false);
-                    nacosResult.EndPoints.AddRange(endpoints);
-                    if (nacosResult.EndPoints.Count == 0)
-                    {
-                        nacosResult.ErrorInfo =
-                            $"no healthy provider endpoint for [{serviceName}] in Nacos group " +
-                            $"[{MyNacos.NormalizeGroup(DubboRootPath, NacosRegistryDefaults.DefaultGroup)}]";
-                    }
-                }
-                catch (Exception exception)
-                {
-                    nacosResult.ErrorInfo =
-                        $"can not get [{serviceName}] from Nacos: {exception.Message}";
-                }
-                return nacosResult;
-            }
-            string nowFullPath = isFullPath
-                ? serviceName
-                : $"{DubboRootPath}{serviceName}{ZooKeeperRegistryPaths.ProvidersSuffix}";
-            DubboServiceEndPointInfos serviceEndPointsInfo = new DubboServiceEndPointInfos();
-            Stat stat =await _innerMyZookeeper.ExistsAsync(nowFullPath);
-            if (stat==null)
-            {
-                if(!_innerMyZookeeper.IsConnected)
-                {
-                    serviceEndPointsInfo.ErrorInfo = $"can not get [{serviceName}] that _innerMyZookeeper can not connect";
-                }
-                else if((await _innerMyZookeeper.ExistsAsync($"{DubboRootPath}{serviceName}"))==null)
-                {
-                    serviceEndPointsInfo.ErrorInfo = $"serviceName [{serviceName}] is error";
-                }
-                else
-                {
-                    serviceEndPointsInfo.ErrorInfo = $"no provider in [{serviceName}]";
-                }
-            }
-            else if(stat.getNumChildren()<=0)
-            {
-                serviceEndPointsInfo.ErrorInfo = $"no provider endpoint in [{serviceName}]";
-            }
-            else
-            {
-                //注册中心之前已经断开了，现在连接上了，需要重新更新watch
-                if(InnerRegistryState == RegistryState.LostConnect || InnerRegistryState == RegistryState.DisConnect)
-                {
-                    _ = ReLoadDubboDriverCollection();
-                }
-
-                ChildrenResult childrenResult = await _innerMyZookeeper.GetChildrenAsync(nowFullPath,_dubboClientZookeeperWatcher).ConfigureAwait(false);
-                if (childrenResult == null)
-                {
-                    serviceEndPointsInfo.ErrorInfo = $"GetChildrenAsync error [{serviceName}]";
-                }
-                else
-                {
-                    foreach(var child in childrenResult.Children)
-                    {
-                        if (child.StartsWith("dubbo%3A%2F%2F") || child.StartsWith("tri%3A%2F%2F"))
-                        {
-                            string nowDubboPath = System.Web.HttpUtility.UrlDecode(child, System.Text.Encoding.UTF8);
-                            Uri nowDubboUri;
-                            if(Uri.TryCreate(nowDubboPath, UriKind.Absolute, out nowDubboUri))
-                            {
-                                if (IPAddress.TryParse(nowDubboUri.Host, out _))
-                                {
-                                    serviceEndPointsInfo.EndPoints.Add(DubboServiceEndPointInfo.GetDubboServiceEndPointInfo(nowDubboUri));
-                                }
-                                else
-                                {
-                                    //这里如果有使用域名或主机名称的可能性，这里可以继续解析为IP
-                                    MyLogger.LogWarning($"[GetSeviceProviderEndPoints] IPAddress.TryParse error {child}");
-                                    continue;
-                                }
-                            }
-                            else
-                            {
-                                MyLogger.LogWarning($"[GetSeviceProviderEndPoints] Uri.TryCreate error {child}");
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            MyLogger.LogWarning($"[GetSeviceProviderEndPoints] childrenResult.Children formate error {child}");
-                            continue;
-                        }
-                    }
-                }
-            }
-            return serviceEndPointsInfo;
         }
 
         private async Task HandleNacosProviderChangedAsync(string serviceName)
@@ -1566,6 +1409,7 @@ namespace DubboNet.Clients
                 _innerMyNacos = null;
                 _innerMyZookeeper = null;
                 _dubboClientZookeeperWatcher = null;
+                _providerDiscovery = null;
                 _dubboDriverCollection?.Dispose();
                 _dubboDriverCollection = null;
                 IDubboActuatorSuite[] remaining;
