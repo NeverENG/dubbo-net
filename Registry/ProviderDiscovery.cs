@@ -39,26 +39,24 @@ namespace DubboNet.Clients.RegistryClient
         private readonly Watcher _watcher;
         private readonly Func<string, Task> _onNacosChanged;
         private readonly Action _onRegistryRecovered;
-        private readonly Func<string, bool, Task<DubboServiceEndPointInfos>> _lookup;
         private readonly ConcurrentDictionary<(string Service, bool FullPath), Lazy<Task<DubboServiceEndPointInfos>>> _inFlight = new();
         private int _disposed;
 
         internal ProviderDiscovery(MyZookeeper zookeeper, MyNacos nacos, string rootPath,
             Watcher watcher, Func<string, Task> onNacosChanged, Action onRegistryRecovered)
         {
+            if ((zookeeper is null) == (nacos is null))
+                throw new ArgumentException("Exactly one Provider registry is required.");
+            if (string.IsNullOrWhiteSpace(rootPath))
+                throw new ArgumentException("Provider registry root cannot be empty.", nameof(rootPath));
+            if (zookeeper != null && watcher is null)
+                throw new ArgumentNullException(nameof(watcher));
             _zookeeper = zookeeper;
             _nacos = nacos;
             _rootPath = rootPath;
             _watcher = watcher;
-            _onNacosChanged = onNacosChanged;
-            _onRegistryRecovered = onRegistryRecovered;
-            _lookup = DiscoverAsync;
-        }
-
-        // Isolate single-flight behavior in tests without connecting to a registry.
-        internal ProviderDiscovery(Func<string, bool, Task<DubboServiceEndPointInfos>> lookup)
-        {
-            _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
+            _onNacosChanged = onNacosChanged ?? throw new ArgumentNullException(nameof(onNacosChanged));
+            _onRegistryRecovered = onRegistryRecovered ?? throw new ArgumentNullException(nameof(onRegistryRecovered));
         }
 
         internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
@@ -102,7 +100,7 @@ namespace DubboNet.Clients.RegistryClient
             (string Service, bool FullPath) key = (serviceName, isFullPath);
             Lazy<Task<DubboServiceEndPointInfos>> pending = _inFlight.GetOrAdd(key,
                 static (request, owner) => new Lazy<Task<DubboServiceEndPointInfos>>(
-                    () => owner._lookup(request.Service, request.FullPath),
+                    () => owner.DiscoverAsync(request.Service, request.FullPath),
                     LazyThreadSafetyMode.ExecutionAndPublication), this);
             try
             {
@@ -188,7 +186,7 @@ namespace DubboNet.Clients.RegistryClient
             else
             {
                 //注册中心之前已经断开了，现在连接上了，需要重新更新watch
-                _onRegistryRecovered?.Invoke();
+                _onRegistryRecovered();
 
                 ChildrenResult childrenResult = await _zookeeper.GetChildrenAsync(nowFullPath,_watcher).ConfigureAwait(false);
                 if (childrenResult == null)

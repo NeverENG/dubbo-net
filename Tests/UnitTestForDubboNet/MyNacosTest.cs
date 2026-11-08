@@ -131,6 +131,68 @@ public class MyNacosTest
     }
 
     [Fact]
+    public async Task ProviderDiscovery_CoalescesConcurrentLookupsAndDoesNotCacheTheResult()
+    {
+        var server = new FakeNacos();
+        server.Add("1", 20880);
+        server.InstanceGate = new TaskCompletionSource<List<Instance>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using MyNacos nacos = server.CreateClient();
+        using var discovery = new ProviderDiscovery(null!, nacos, Group, null!,
+            _ => Task.CompletedTask, () => { });
+
+        Task<DubboServiceEndPointInfos>[] callers = Enumerable.Range(0, 32)
+            .Select(_ => discovery.GetProviderEndPointsAsync(Service)).ToArray();
+        await server.InstanceReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, server.InstanceReads);
+        server.InstanceGate.SetResult(server.Instances[Assert.Single(server.Services)]);
+        Assert.All(await Task.WhenAll(callers), result => Assert.Single(result.EndPoints));
+        Assert.Equal(1, server.InstanceReads);
+
+        Assert.Single((await discovery.GetProviderEndPointsAsync(Service)).EndPoints);
+        Assert.Equal(2, server.InstanceReads);
+    }
+
+    [Fact]
+    public async Task ProviderDiscovery_DisposeDoesNotCancelAnInFlightLookup()
+    {
+        var server = new FakeNacos();
+        server.Add("1", 20880);
+        server.InstanceGate = new TaskCompletionSource<List<Instance>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using MyNacos nacos = server.CreateClient();
+        using var discovery = new ProviderDiscovery(null!, nacos, Group, null!,
+            _ => Task.CompletedTask, () => { });
+
+        Task<DubboServiceEndPointInfos> pending = discovery.GetProviderEndPointsAsync(Service);
+        await server.InstanceReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        discovery.Dispose();
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => discovery.GetProviderEndPointsAsync(Service));
+        server.InstanceGate.SetResult(server.Instances[Assert.Single(server.Services)]);
+        Assert.Single((await pending).EndPoints);
+        Assert.Empty(server.NamingListeners);
+    }
+
+    [Fact]
+    public async Task ProviderDiscovery_FullPathDoesNotShareTheServiceLookup()
+    {
+        var server = new FakeNacos();
+        server.Add("1", 20880);
+        server.InstanceGate = new TaskCompletionSource<List<Instance>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using MyNacos nacos = server.CreateClient();
+        using var discovery = new ProviderDiscovery(null!, nacos, Group, null!,
+            _ => Task.CompletedTask, () => { });
+
+        Task<DubboServiceEndPointInfos> pending = discovery.GetProviderEndPointsAsync(Service);
+        await server.InstanceReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DubboServiceEndPointInfos fullPath = await discovery.GetProviderEndPointsAsync(Service, isFullPath: true);
+        Assert.Contains("expects a Dubbo interface name", fullPath.ErrorInfo);
+        server.InstanceGate.SetResult(server.Instances[Assert.Single(server.Services)]);
+        Assert.Single((await pending).EndPoints);
+    }
+
+    [Fact]
     public void PublicApi_DoesNotExposeNacosSdkTypes()
     {
         Assert.True(typeof(MyNacos).IsPublic);
@@ -548,6 +610,9 @@ public class MyNacosTest
         public Action<IListener>? DuringInitialConfig;
         public bool FailCatalog, FailConfigRead;
         public int CatalogReads, NamingSubscribes, ConfigReads, ConfigRemoves;
+        public int InstanceReads;
+        public TaskCompletionSource<List<Instance>>? InstanceGate;
+        public TaskCompletionSource InstanceReadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public MyNacos CreateClient(
             string address = Address,
@@ -603,7 +668,9 @@ public class MyNacosTest
         private Task<List<Instance>> FindInstances(string name, string group)
         {
             QueriedGroups.Add(group);
-            return Task.FromResult(Instances.GetValueOrDefault(name) ?? new List<Instance>());
+            Interlocked.Increment(ref InstanceReads);
+            InstanceReadStarted.TrySetResult();
+            return InstanceGate?.Task ?? Task.FromResult(Instances.GetValueOrDefault(name) ?? new List<Instance>());
         }
         private Task<ListView<string>> Catalog(string group)
         {
