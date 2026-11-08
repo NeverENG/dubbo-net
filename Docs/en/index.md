@@ -1,17 +1,14 @@
-# Code map
+# Where to start with DubboNet
 
-[中文](../zh/index.md) · [English README](../../README.md) · [Chinese README](../../readme_cn.md)
+[中文](../zh/index.md) · [User guide](../../README.md)
 
-Choose a module below, then follow its source, tests, and existing detailed guides. This index is navigation, not another implementation or user manual. The pages describe the **current consumer-side code**, not a proposed reorganization of namespaces or directories.
+DubboNet primarily lets a .NET application **call a remote Java Provider**. To follow a `QueryAsync` call, start at the [client entry point](client/index.md), then read its downstream pieces:
 
-| Module | Why read it | Continue |
-| --- | --- | --- |
-| Client entry | Public calls, invocation preparation, and lifecycle | [Client](client/index.md) |
-| Registry and discovery | Find Providers and receive changes | [Registry](registry/index.md) |
-| Metadata | Find method/type definitions and resolve signatures | [Metadata](metadata/index.md) |
-| Service driver and selection | Maintain callable candidates and reserve a dispatch | [Selection](selection/index.md) |
-| Protocol transports | Send the selected call over Dubbo TCP or Triple HTTP/JSON | [Transports](transport/index.md) |
+1. [Metadata and signatures](metadata/index.md): prepare an invocation when Java parameter types are unknown.
+2. [Registry and discovery](registry/index.md): find Providers and track address changes.
+3. [Service selection](selection/index.md): choose among Providers and protect in-flight calls.
+4. [Protocol transports](transport/index.md): send over Dubbo TCP or Triple and read the result.
 
-**Reading order for a call:** [Client](client/index.md) → [Metadata](metadata/index.md) (when needed) → [Registry](registry/index.md) → [Selection](selection/index.md) → [Transports](transport/index.md). Metadata also uses discovery to locate Provider metadata; registry-change callbacks follow a separate route into client refresh. These links are reading aids, not a claim that every call performs every step.
+This is a **reading route**, not a fixed sequence on every request. A metadata lookup may itself need Provider discovery, and calls to known services need not discover them again each time. Registry changes update state through a separate callback path.
 
-For usage and compatibility consult the [README](../../README.md); for architecture decisions see [RFC conventions](../RFC.md), and for verified Git history see the [changelog](../../CHANGELOG.md). The [end-to-end test guide](../../Tests/EndToEndTestEnvironment/README.md) explains how to exercise the Java Provider fixtures; they are not a .NET Provider server.
+To run code, use the [user guide](../../README.md). For design history, see the [RFC conventions](../RFC.md) and [changelog](../../CHANGELOG.md). The [end-to-end test guide](../../Tests/EndToEndTestEnvironment/README.md) describes the Java Provider fixture, not a .NET server implementation.

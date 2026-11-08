@@ -1,24 +1,12 @@
-# Protocol transports
+# Transport: sending to a remote Provider
 
 [Code map](../index.md) · [中文](../../zh/transport/index.md)
 
-## Purpose and background
+At this point the client has prepared the method and Java parameter types and [selected a Provider](../selection/index.md). The suite encodes and sends the call, then reads its response: `dubbo://` uses native Dubbo TCP; `tri://` uses Triple HTTP/JSON. Despite the directory name `DubboService/`, these suites are **consumer-side**, not .NET Provider servers.
 
-After a Provider has been selected, a transport sends the invocation to that **remote** Provider and reads its response. The `DubboService/` directory contains consumer-side actuators despite its name; it is not a .NET Provider-server entry point. Native Dubbo TCP and Triple HTTP/JSON have different wire formats, so protocol detail stays in the existing notes rather than being redefined here.
+`DubboClient` hands the prepared invocation to the selected suite, which manages its own transport resources and returns a `DubboRequestResult`. The in-flight selection reservation must be completed whether dispatch succeeds or fails. Most applications should use the [client API](../client/index.md) rather than establish protocol connections themselves.
 
-## Upstream and downstream
-
-The [service driver](../selection/index.md) chooses an actuator from the Provider URL scheme. [`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs) dispatches a `DubboInvocation` to the selected suite. For `dubbo://`, [`NativeDubboActuatorSuite`](../../../DubboService/NativeDubboActuatorSuite.cs) uses [`NativeDubboConnection`](../../../DubboService/Native/NativeDubboConnection.cs) and [`NativeDubboCodec`](../../../DubboService/Native/NativeDubboCodec.cs). For `tri://`, [`TripleDubboActuatorSuite`](../../../DubboService/TripleDubboActuatorSuite.cs) sends HTTP/JSON. After dispatch returns or throws, the [per-call reservation](../selection/index.md) is completed.
-
-## What crosses the boundary
-
-- **Input:** a selected Provider connection/suite and an invocation containing service, method, exact Java parameter types and arguments. Direct actuator usage does not infer signatures or discover Providers.
-- **Output:** a `DubboRequestResult` with success status, response data and error information. Different transport formats must preserve the public result contract; see the [result model](../../../DubboService/DataModle/DubboRequestResult.cs).
-- **Connection:** each suite owns its transport resources according to its implementation; selection and in-flight reservation determine when a shared suite can be retired.
-
-## How to use it
-
-Normally use the [client API](../client/index.md) so discovery and selection happen for you. When the Provider address and Java signature are already known, direct native invocation is possible:
+If you already know a Provider address and the exact Java signature, you can bypass discovery, inference and load balancing and use a native suite directly:
 
 ```csharp
 using DubboNet.DubboService;
@@ -31,4 +19,6 @@ var invocation = new DubboInvocation(
 var result = await suite.SendQuery(invocation);
 ```
 
-This bypasses the registry, load balancing and metadata inference. For direct Triple usage see the [user guide](../../../README.md#direct-actuator-usage). For wire and compatibility detail follow [Native protocol notes (Chinese)](../../NativeDubboProtocol.md) or [Triple protocol notes (Chinese)](../../TripleProtocol.md); verify with [Native codec tests](../../../Tests/UnitTestForDubboNet/NativeDubboCodecTest.cs), [Triple transport tests](../../../Tests/UnitTestForDubboNet/TripleDubboActuatorSuiteTest.cs) and the [real-fixture guide](../../../Tests/EndToEndTestEnvironment/README.md).
+For direct Triple usage, see the [user guide](../../../README.md#direct-actuator-usage). This is not another auto-discovery entry point: the caller supplies the address and signature.
+
+**Follow the code:** [native suite](../../../DubboService/NativeDubboActuatorSuite.cs), [connection](../../../DubboService/Native/NativeDubboConnection.cs), [codec](../../../DubboService/Native/NativeDubboCodec.cs), [Triple suite](../../../DubboService/TripleDubboActuatorSuite.cs); for wire details see the [Native notes (Chinese)](../../NativeDubboProtocol.md) and [Triple notes (Chinese)](../../TripleProtocol.md); compare [codec tests](../../../Tests/UnitTestForDubboNet/NativeDubboCodecTest.cs) and [Triple tests](../../../Tests/UnitTestForDubboNet/TripleDubboActuatorSuiteTest.cs).

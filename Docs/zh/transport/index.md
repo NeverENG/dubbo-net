@@ -1,24 +1,12 @@
-# 协议传输
+# 协议传输：把请求发给远端 Provider
 
 [代码地图](../index.md) · [English](../../en/transport/index.md)
 
-## 功能与背景
+到这一步，客户端已经准备好方法、Java 参数类型，并[选定 Provider](../selection/index.md)。执行器负责把调用编码、发送并读取响应：`dubbo://` 使用原生 Dubbo TCP，`tri://` 使用 Triple HTTP/JSON。虽然目录叫 `DubboService/`，这里的执行器属于**消费端**，不是 .NET Provider 服务端。
 
-选定 Provider 后，传输执行器向该**远端** Provider 发送调用并读取响应。`DubboService/` 虽然叫这个名字，其中的执行器仍属于消费端，不是 .NET Provider 服务端入口。原生 Dubbo TCP 与 Triple HTTP/JSON 的线协议不同，协议细节留在已有专题文档，不在此重新定义。
+`DubboClient` 将准备好的调用交给选中的执行器；执行器管理对应的传输资源，结果返回 `DubboRequestResult`。无论发送成功还是失败，选择阶段的在途预留都需要完成。正常应用只需用[客户端 API](../client/index.md)，不必自行建立协议连接。
 
-## 上下游如何衔接
-
-[服务 Driver](../selection/index.md)按 Provider URL scheme 选执行器。[`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs)把 `DubboInvocation` 交给执行器。对于 `dubbo://`，[`NativeDubboActuatorSuite`](../../../DubboService/NativeDubboActuatorSuite.cs)使用 [`NativeDubboConnection`](../../../DubboService/Native/NativeDubboConnection.cs)与 [`NativeDubboCodec`](../../../DubboService/Native/NativeDubboCodec.cs)；对于 `tri://`，[`TripleDubboActuatorSuite`](../../../DubboService/TripleDubboActuatorSuite.cs)使用 HTTP/JSON。发送正常返回或抛出异常后，都会完成[本次调用的预留](../selection/index.md)。
-
-## 输入、产物与连接
-
-- **输入：** 已选中的 Provider 连接／执行器，以及包含服务、方法、精确 Java 参数类型和参数值的调用对象。直接使用执行器时，不会自动发现 Provider 或推断签名。
-- **产物：** 包含成功状态、响应数据与错误信息的 `DubboRequestResult`；传输格式虽不同，对外仍遵循[结果类型](../../../DubboService/DataModle/DubboRequestResult.cs)的契约。
-- **连接：** 执行器按实现管理传输资源；选择与在途预留决定共享执行器何时可以退出。
-
-## 如何使用
-
-通常使用[客户端 API](../client/index.md)，让它负责发现和选择。如果已知 Provider 地址与 Java 签名，也可以直接调用原生执行器：
+如果已经知道 Provider 的地址和准确的 Java 签名，也能绕开注册发现、元数据推断和负载均衡，直接使用原生执行器：
 
 ```csharp
 using DubboNet.DubboService;
@@ -31,4 +19,6 @@ var invocation = new DubboInvocation(
 var result = await suite.SendQuery(invocation);
 ```
 
-这种方式绕过注册中心、负载均衡与元数据推断。Triple 直连示例见[使用手册](../../../readme_cn.md#直接使用执行器--direct-actuator-usage)。线协议与兼容细节分别看[原生协议说明](../../NativeDubboProtocol.md)和 [Triple 协议说明](../../TripleProtocol.md)；以[原生编解码测试](../../../Tests/UnitTestForDubboNet/NativeDubboCodecTest.cs)、[Triple 传输测试](../../../Tests/UnitTestForDubboNet/TripleDubboActuatorSuiteTest.cs)和[真实环境指南](../../../Tests/EndToEndTestEnvironment/README.md)核对实现。
+Triple 直连见[使用手册](../../../readme_cn.md#直接使用执行器--direct-actuator-usage)。这不是另一套自动发现入口；地址和签名须由调用方提供。
+
+**从代码继续读：** [原生执行器](../../../DubboService/NativeDubboActuatorSuite.cs)、[连接](../../../DubboService/Native/NativeDubboConnection.cs)、[编解码](../../../DubboService/Native/NativeDubboCodec.cs)、[Triple 执行器](../../../DubboService/TripleDubboActuatorSuite.cs)；协议细节见[原生协议](../../NativeDubboProtocol.md)、[Triple 协议](../../TripleProtocol.md)，对照[编解码测试](../../../Tests/UnitTestForDubboNet/NativeDubboCodecTest.cs)和 [Triple 测试](../../../Tests/UnitTestForDubboNet/TripleDubboActuatorSuiteTest.cs)。

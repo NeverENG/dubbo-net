@@ -1,24 +1,12 @@
-# Client entry
+# Starting a call with `DubboClient`
 
 [Code map](../index.md) · [中文](../../zh/client/index.md)
 
-## Purpose and background
+The application supplies a service, method and arguments; `DubboClient` coordinates Provider discovery, connection selection and dispatch. It is a **consumer-side entry point**, not a .NET service publisher. Reuse a client within its owning application scope and dispose it at the end, rather than creating one per request.
 
-Applications need one long-lived entry point instead of managing registry connections, metadata lookup and Provider connections per call. [`DubboClient`](../../../Clients/DubboClient.cs) exposes `QueryAsync` and coordinates those parts. It is a **consumer-side** entry: the Java Providers in the test environment are remote servers, not services published by DubboNet. This page describes the current responsibilities; it does not claim they should all remain in one class.
+## Where the request goes
 
-## Upstream and downstream
-
-An application supplies a service/method and arguments, optionally exact Java parameter types. Without those types, `QueryWithInferredTypesAsync` or `QueryAsync(DubboInvocation)` consults [Metadata](../metadata/index.md) to prepare a `DubboInvocation`. `QueryInternalAsync` may consult metadata again for overload compatibility, asks [Registry](../registry/index.md) for endpoints when needed, then hands a call to [Selection](../selection/index.md) and [Transport](../transport/index.md). A Provider-change callback follows a separate refresh path into the client; it is not another public `QueryAsync` call.
-
-## What crosses the boundary
-
-- **Input:** a method endpoint or `DubboInvocation` (service, method, Java parameter types, arguments, and optional version/group/attachments).
-- **Output:** `DubboRequestResult` or a typed result; callers inspect `QuerySuccess`, result and error information. Metadata inference can raise `DubboMetadataException` before dispatch. See the [result contract](../../../DubboService/DataModle/DubboRequestResult.cs) for the precise fields.
-- **Lifetime:** one client holds registry/metadata references and service drivers across calls. Dispose it when the owning application scope ends; the [connection and registration behavior](../../../README.md#configuration) is described in the user guide.
-
-## How to use it
-
-For a known Java signature, pass types explicitly; this example assumes a reachable registry and Provider for the indicated service:
+Consider `com.foo.JobService#getJob`: if you know its Java parameter types, pass them to `QueryAsync`. Otherwise the client asks [Metadata](../metadata/index.md) to infer a signature. It may then check overload/protocol compatibility, get Provider addresses from [Registry](../registry/index.md), choose and reserve a suite via [Selection](../selection/index.md), and hand the call to [Transport](../transport/index.md). Address changes follow a separate refresh path; they do not invoke the public call again.
 
 ```csharp
 using DubboNet.Clients;
@@ -32,4 +20,6 @@ var result = await client.QueryAsync(
 if (!result.QuerySuccess) Console.WriteLine(result.ErrorMeaasge);
 ```
 
-For automatic type inference, other overloads, and complete result handling, follow the [English README](../../../README.md#quick-start). The [public API tests](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs) clarify which overload receives an array as one argument. For end-to-end calls, see the [environment guide](../../../Tests/EndToEndTestEnvironment/README.md).
+This assumes a reachable registry and Provider. Callers receive `DubboRequestResult` (or its typed version), not an internal driver or connection. If required inference cannot find an unambiguous signature, `DubboMetadataException` may be raised before dispatch. See the [user guide](../../../README.md#quick-start) for other overloads and result fields.
+
+**Follow the code:** [DubboClient](../../../Clients/DubboClient.cs) → [result model](../../../DubboService/DataModle/DubboRequestResult.cs); [public API tests](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs) cover overload behavior, and the [fixture guide](../../../Tests/EndToEndTestEnvironment/README.md) shows how to run the Java Provider.

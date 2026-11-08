@@ -1,34 +1,11 @@
-# Service drivers and Provider selection
+# Service selection: choosing one Provider
 
 [Code map](../index.md) · [中文](../../zh/selection/index.md)
 
-## Purpose and background
+Discovering several Providers for `JobService` does not tell us where to send this request. The client filters candidates by version, group and any protocol restriction, then applies the configured load-balancing policy. It maintains a driver per service holding callable endpoint state, not a duplicate of Java method metadata.
 
-A registry can return several Providers for one service. Before sending a request, the client needs to filter candidates, choose one and keep its connection alive for this in-flight call. [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) maps services to drivers; [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) holds one service's endpoint state, candidate sets and selection logic. This is callable state, not a duplicate metadata cache.
+If the first call has no driver, the client [discovers endpoints](../registry/index.md), creates one and retries selection. Registry changes update existing drivers. A successful selection yields a suite and a **per-call reservation**, which accompanies dispatch to [Transport](../transport/index.md). The reservation is released even if sending fails, so removing an endpoint cannot retire a connection still used by an in-flight call. If no endpoint is usable, the client returns a failure result; applications do not manipulate drivers directly.
 
-## Upstream and downstream
+To change policy, configure `DubboClient.DubboClientConf.NowLoadBalanceMode`, then call `QueryAsync` as usual; do not construct a driver yourself. For example, choose `DubboClient.LoadBalanceMode.LeastActive`. That policy uses in-flight calls observed by **this consumer**, not global server load. See the [configuration guide](../../../README.md#configuration) and [client entry point](../client/index.md) for complete usage.
 
-[Discovery](../registry/index.md) supplies endpoint snapshots. On first use, [`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs) creates the service driver if missing and tries selection again; registry-change events update existing drivers. `DubboServiceDriver.SelectAndReserve` chooses a matching Provider and creates a [`LoadBalancedInvocation`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs). The selected suite goes to [Transport](../transport/index.md); completion releases the reservation even if dispatch fails. Endpoint removal must not dispose a connection still needed by an already reserved call.
-
-## What crosses the boundary
-
-- **Input:** service name, endpoint snapshot, invocation routing attributes, optional protocol requirement, configured load-balancing mode and request key.
-- **Output:** an internal selection result with the chosen suite and per-call reservation, or a reason no usable actuator was found; callers receive a `DubboRequestResult` through `DubboClient`, not a public driver handle.
-- **Ownership:** the driver owns service candidates; suites can be shared across services. The client's in-flight discovery tasks are not another candidate cache.
-
-## How to use it
-
-Select a policy through client configuration, not by directly constructing an internal driver:
-
-```csharp
-using DubboNet.Clients;
-
-using var client = new DubboClient(
-    "127.0.0.1:2181",
-    new DubboClient.DubboClientConf
-    {
-        NowLoadBalanceMode = DubboClient.LoadBalanceMode.LeastActive
-    });
-```
-
-Then call `client.QueryAsync(...)` as in the [client guide](../client/index.md). This mode uses this consumer's in-flight statistics; it does not measure global server load. See the [configuration guide](../../../README.md#configuration) for other policies and [driver tests](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs), [load-balancing tests](../../../Tests/UnitTestForDubboNet/LoadBalancingTest.cs) and [in-flight removal regression](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs) for the current selection and lifetime contracts.
+**Follow the code:** [driver collection](../../../Clients/DubboDriverCollection.cs), [service driver](../../../Clients/DubboServiceDriver.cs), [call reservation](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs); compare [driver tests](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs), [load-balancing tests](../../../Tests/UnitTestForDubboNet/LoadBalancingTest.cs), and [endpoint-removal regression](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs).
