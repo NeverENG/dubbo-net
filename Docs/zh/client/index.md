@@ -6,7 +6,9 @@
 
 ## 请求怎样走到 Provider
 
-以 `com.foo.JobService#getJob` 为例。传入明确的 Java 参数类型时，客户端可以直接准备调用；不传类型时，它会查[元数据](../metadata/index.md)确定签名。准备好 `DubboInvocation` 后，客户端按需检查重载方法的协议限制，再从 Driver（持有该服务的 Provider 候选）中**选择并预留**执行器。如果还没有 Driver，就先经[注册发现](../registry/index.md)取得 Provider 地址、建立 Driver，再重试选择与预留。最后由[协议传输](../transport/index.md)发送请求并读取响应；具体选择规则见[服务选择](../selection/index.md)。
+以 `com.foo.JobService#getJob` 为例。传入明确的 Java 参数类型时，客户端可以直接准备调用；不传类型时，它会查[元数据](../metadata/index.md)确定签名。准备好 `DubboInvocation` 后，客户端按需检查重载方法的协议限制。
+
+接下来，它从 Driver（持有该服务的 Provider 候选）中**选择并预留**执行器。如果还没有 Driver，就先经[注册发现](../registry/index.md)取得 Provider 地址、建立 Driver，再重试选择与预留。最后由[协议传输](../transport/index.md)发送请求并读取响应；具体选择规则见[服务选择](../selection/index.md)。
 
 Provider 上下线由注册中心回调触发刷新，不是重新调用一次 `QueryAsync`。客户端跨请求持有注册连接、元数据和服务 Driver 等状态，所以通常在应用作用域内复用，结束时释放。
 

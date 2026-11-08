@@ -24,6 +24,8 @@ var methods = await client.GetMethodMetadataAsync(
     "com.foo.JobService#getJob");
 ```
 
-`GetMethodMetadataAsync` 返回该方法发现的各个签名；每项的 `ParameterTypes` 是按顺序排列的 Java 类型名，可对照 `QueryAsync` 显式传参时的类型数组。方法不存在时返回空集合。`GetServiceMethodsMetadataAsync` 查看整个服务的方法，`GetServiceTypesMetadataAsync` 则读取类型定义；后者需要元数据中心，Telnet 无法提供类型定义。更多配置与显式传参方式见[元数据使用说明](../../../readme_cn.md#元数据策略与缓存--metadata-strategy-and-cache)。
+`GetMethodMetadataAsync` 返回该方法发现的各个签名；每项的 `ParameterTypes` 是按顺序排列的 Java 类型名，可对照 `QueryAsync` 显式传参时的类型数组。服务元数据可读但找不到该方法时，返回空集合。
+
+`GetServiceMethodsMetadataAsync` 查看整个服务的方法，`GetServiceTypesMetadataAsync` 则读取类型定义；后者需要元数据中心，Telnet 无法提供类型定义。更多配置与显式传参方式见[元数据使用说明](../../../readme_cn.md#元数据策略与缓存--metadata-strategy-and-cache)。
 
 **核对实现：** [客户端入口](../../../Clients/DubboClient.cs)、[Manager](../../../Clients/DubboMetadataManager.cs)、[签名解析器](../../../Clients/DubboMethodMetadataResolver.cs)；[元数据测试](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs)和[契约测试](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs)。Manager 目前位于 `Clients/`，此处描述现状，不预设未来的代码层级。
