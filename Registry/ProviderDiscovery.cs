@@ -16,6 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
+using DubboNet.Clients.RegistryClient;
 using MyCommonHelper;
 using org.apache.zookeeper;
 using org.apache.zookeeper.data;
@@ -26,7 +27,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DubboNet.Clients.RegistryClient
+namespace DubboNet.Registry
 {
     // Owns this client's Nacos provider subscriptions and in-flight discovery.
     // The client owns registry leases and its ZooKeeper watcher; the service driver

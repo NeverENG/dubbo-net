@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace DubboNet.Clients.RegistryClient
+namespace DubboNet.Registry
 {
     /// <summary>
     /// Dubbo 注册中心共享的服务类别；不包含具体注册中心的路径分隔符。

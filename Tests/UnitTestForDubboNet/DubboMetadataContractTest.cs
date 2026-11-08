@@ -19,6 +19,7 @@ using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.Metadata;
 using DubboNet.Clients.RegistryClient;
+using DubboNet.Registry;
 using System.Text;
 
 namespace UnitTestForDubboNet

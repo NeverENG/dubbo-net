@@ -23,6 +23,7 @@ using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.Metadata;
 using DubboNet.Clients.RegistryClient;
+using DubboNet.Registry;
 using Nacos.V2;
 using Nacos.V2.Naming;
 using Nacos.V2.Naming.Dtos;

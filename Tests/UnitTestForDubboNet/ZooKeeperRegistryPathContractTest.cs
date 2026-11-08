@@ -18,11 +18,23 @@
 using DubboNet.Clients;
 using DubboNet.Clients.DataModle;
 using DubboNet.Clients.RegistryClient;
+using DubboNet.Registry;
 
 namespace UnitTestForDubboNet
 {
     public class ZooKeeperRegistryPathContractTest
     {
+        [Fact]
+        public void RegistryImplementationHasItsOwnNamespace_WithoutMovingPublicClients()
+        {
+            Assert.Equal("DubboNet.Registry", typeof(ProviderDiscovery).Namespace);
+            Assert.Equal("DubboNet.Registry", typeof(RegistryCategories).Namespace);
+            Assert.Equal("DubboNet.Registry", typeof(ConsumerRegistrationConfiguration).Namespace);
+            Assert.Equal("DubboNet.Clients.RegistryClient", typeof(MyNacos).Namespace);
+            Assert.Equal("DubboNet.Clients.RegistryClient", typeof(MyZookeeper).Namespace);
+            Assert.Equal("DubboNet.Clients.RegistryClient", typeof(ZNode).Namespace);
+        }
+
         [Fact]
         public void RegistryCategories_AreSharedWithoutIncludingZooKeeperPathSeparators()
         {

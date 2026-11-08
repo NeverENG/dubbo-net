@@ -16,6 +16,7 @@
  */
 
 using DubboNet.Clients.DataModle;
+using DubboNet.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using MyCommonHelper;
 using Nacos.V2;

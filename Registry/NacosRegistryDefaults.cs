@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace DubboNet.Clients.RegistryClient
+namespace DubboNet.Registry
 {
     /// <summary>
     /// Nacos Naming 与 Config 的默认分组；不用于 Metadata 定义分组。
