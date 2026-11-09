@@ -156,7 +156,7 @@ public class MyNacosTest
     }
 
     [Fact]
-    public async Task ProviderDiscovery_DisposeDoesNotCancelAnInFlightLookup()
+    public async Task ProviderDiscovery_DiscardsAnInFlightLookupAfterDisposal()
     {
         var server = new FakeNacos();
         server.Add("1", 20880);
@@ -171,7 +171,7 @@ public class MyNacosTest
         discovery.Dispose();
         await Assert.ThrowsAsync<ObjectDisposedException>(() => discovery.GetProviderEndPointsAsync(Service));
         server.InstanceGate.SetResult(server.Instances[Assert.Single(server.Services)]);
-        Assert.Single((await pending).EndPoints);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pending);
         Assert.Empty(server.NamingListeners);
     }
 

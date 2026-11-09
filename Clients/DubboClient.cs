@@ -228,7 +228,7 @@ namespace DubboNet.Clients
 
         private Dictionary<DubboEndpointKey, DubboActuatorSuiteEndPintInfo> _retainDubboActuatorSuiteCollection = new Dictionary<DubboEndpointKey, DubboActuatorSuiteEndPintInfo>();
 
-        private ProviderDiscovery _providerDiscovery;
+        private readonly ProviderDiscovery _providerDiscovery;
 
         private volatile bool _isInReLoadDubboDriverCollectionTask = false;
 
@@ -1120,11 +1120,17 @@ namespace DubboNet.Clients
             && (errorInfo.Contains("no provider", StringComparison.OrdinalIgnoreCase)
                 || errorInfo.Contains("no healthy provider", StringComparison.OrdinalIgnoreCase));
 
-        internal bool TryGetServiceNameFromProviderPath(string providerPath, out string serviceName) =>
-            _providerDiscovery.TryGetServiceNameFromProviderPath(providerPath, out serviceName);
+        internal bool TryGetServiceNameFromProviderPath(string providerPath, out string serviceName)
+        {
+            ThrowIfDisposed();
+            return _providerDiscovery.TryGetServiceNameFromProviderPath(providerPath, out serviceName);
+        }
 
-        private Task<DubboServiceEndPointInfos> DiscoverProvidersAsync(string serviceName, bool isFullPath = false) =>
-            _providerDiscovery.GetProviderEndPointsAsync(serviceName, isFullPath);
+        private Task<DubboServiceEndPointInfos> DiscoverProvidersAsync(string serviceName, bool isFullPath = false)
+        {
+            ThrowIfDisposed();
+            return _providerDiscovery.GetProviderEndPointsAsync(serviceName, isFullPath);
+        }
 
         private async Task<IReadOnlyList<DubboServiceEndPointInfo>>
             GetProviderEndPointsForMetadataAsync(string serviceName)
@@ -1309,7 +1315,6 @@ namespace DubboNet.Clients
                 _innerMyNacos = null;
                 _innerMyZookeeper = null;
                 _dubboClientZookeeperWatcher = null;
-                _providerDiscovery = null;
                 _dubboDriverCollection?.Dispose();
                 _dubboDriverCollection = null;
                 IDubboActuatorSuite[] remaining;

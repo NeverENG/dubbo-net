@@ -29,12 +29,31 @@ using System.Threading.Tasks;
 
 namespace DubboNet.Registry
 {
+    // Narrow registry read contract: allows discovery's ZooKeeper branch to be
+    // exercised offline without changing the public MyZookeeper API.
+    internal interface IProviderZooKeeper
+    {
+        bool IsConnected { get; }
+        Task<Stat> ExistsAsync(string path);
+        Task<IReadOnlyList<string>> GetChildrenAsync(string path, Watcher watcher);
+    }
+
     // Owns this client's Nacos provider subscriptions and in-flight discovery.
     // The client owns registry leases and its ZooKeeper watcher; the service driver
     // alone owns callable endpoint state. Metadata has a separate subscriber.
     internal sealed class ProviderDiscovery : IDisposable
     {
-        private readonly MyZookeeper _zookeeper;
+        private sealed class ZooKeeperReader : IProviderZooKeeper
+        {
+            private readonly MyZookeeper _client;
+            internal ZooKeeperReader(MyZookeeper client) => _client = client;
+            public bool IsConnected => _client.IsConnected;
+            public Task<Stat> ExistsAsync(string path) => _client.ExistsAsync(path);
+            public async Task<IReadOnlyList<string>> GetChildrenAsync(string path, Watcher watcher) =>
+                (await _client.GetChildrenAsync(path, watcher).ConfigureAwait(false))?.Children;
+        }
+
+        private readonly IProviderZooKeeper _zookeeper;
         private readonly MyNacos _nacos;
         private readonly string _rootPath;
         private readonly Watcher _watcher;
@@ -44,6 +63,18 @@ namespace DubboNet.Registry
         private int _disposed;
 
         internal ProviderDiscovery(MyZookeeper zookeeper, MyNacos nacos, string rootPath,
+            Watcher watcher, Func<string, Task> onNacosChanged, Action onRegistryRecovered)
+            : this(zookeeper is null ? null : new ZooKeeperReader(zookeeper), nacos,
+                rootPath, watcher, onNacosChanged, onRegistryRecovered)
+        {
+        }
+
+        internal static ProviderDiscovery ForZooKeeper(IProviderZooKeeper zookeeper,
+            string rootPath, Watcher watcher, Action onRegistryRecovered) =>
+            new ProviderDiscovery(zookeeper, null, rootPath, watcher,
+                _ => Task.CompletedTask, onRegistryRecovered);
+
+        private ProviderDiscovery(IProviderZooKeeper zookeeper, MyNacos nacos, string rootPath,
             Watcher watcher, Func<string, Task> onNacosChanged, Action onRegistryRecovered)
         {
             if ((zookeeper is null) == (nacos is null))
@@ -105,7 +136,11 @@ namespace DubboNet.Registry
                     LazyThreadSafetyMode.ExecutionAndPublication), this);
             try
             {
-                return await pending.Value.ConfigureAwait(false);
+                DubboServiceEndPointInfos result = await pending.Value.ConfigureAwait(false);
+                // An SDK lookup may outlive disposal. Never publish its snapshot after
+                // the subscription that would keep it current has been removed.
+                ObjectDisposedException.ThrowIf(IsDisposed, this);
+                return result;
             }
             finally
             {
@@ -189,14 +224,14 @@ namespace DubboNet.Registry
                 //注册中心之前已经断开了，现在连接上了，需要重新更新watch
                 _onRegistryRecovered();
 
-                ChildrenResult childrenResult = await _zookeeper.GetChildrenAsync(nowFullPath,_watcher).ConfigureAwait(false);
-                if (childrenResult == null)
+                IReadOnlyList<string> children = await _zookeeper.GetChildrenAsync(nowFullPath,_watcher).ConfigureAwait(false);
+                if (children == null)
                 {
                     serviceEndPointsInfo.ErrorInfo = $"GetChildrenAsync error [{serviceName}]";
                 }
                 else
                 {
-                    foreach(var child in childrenResult.Children)
+                    foreach(var child in children)
                     {
                         if (child.StartsWith("dubbo%3A%2F%2F") || child.StartsWith("tri%3A%2F%2F"))
                         {
