@@ -10,7 +10,7 @@ This file is a Git index, not a second implementation history. Each link below r
 
 **此处不声明已经发布。** 项目文件中的包版本号不能单独证明 Git tag 或 Release 已发布。[导入合并后至 main 的比较视图](https://github.com/apache/dubbo-net/compare/e10f6d50e97e15bb1164da3c8beccc2380534db5...main)会随 `main` 变化，不是发行版本边界。将来有可核验的 tag/release，再补链接及简短的用户可见摘要，不倒填虚构版本。
 
-- Import provenance / 导入来源：[PR #1](https://github.com/apache/dubbo-net/pull/1), [merge commit](https://github.com/apache/dubbo-net/commit/e10f6d50e97e15bb1164da3c8beccc2380534db5). The import working notes are not the current code guide / 导入工作记录不是当前代码指南。
+- Import provenance / 导入来源：[PR #1](https://github.com/apache/dubbo-net/pull/1), [merge commit](https://github.com/apache/dubbo-net/commit/e10f6d50e97e15bb1164da3c8beccc2380534db5). Outstanding authorization questions and historical external verification are tracked in [import status](Docs/import-status.md) / 待核授权事项和历史外网验证边界见[导入状态](Docs/import-status.md)。
 - Protocol wire constants and Hessian2 reader boundaries / 协议字节常量与 Hessian2 读取边界：[PR #18](https://github.com/apache/dubbo-net/pull/18), [PR #21](https://github.com/apache/dubbo-net/pull/21).
 - Registry paths, Provider URL keys and defaults / 注册路径、Provider URL 字段与默认值：[PR #22](https://github.com/apache/dubbo-net/pull/22), [PR #24](https://github.com/apache/dubbo-net/pull/24), [PR #28](https://github.com/apache/dubbo-net/pull/28).
 - Telnet and metadata naming / Telnet 与元数据命名：[PR #29](https://github.com/apache/dubbo-net/pull/29), [PR #30](https://github.com/apache/dubbo-net/pull/30).
