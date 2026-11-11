@@ -1,21 +1,17 @@
-# Dubbo2 原生 TCP 协议实现说明
+# 原生 Dubbo TCP（Hessian2）
 
 [English](../../en/protocols/native-dubbo.md) · [中文首页](../index.md)
 
-本项目的 `NativeDubboActuatorSuite` 使用 Dubbo2 TCP 帧、Hessian2 和 `$invoke` 泛化调用，不依赖 Provider 的 Telnet `invoke` 命令。
+`dubbo://` Provider 由 `NativeDubboActuatorSuite` 通过 TCP 发送 Dubbo 帧。请求体使用 Hessian2 编码的 `$invoke` 泛化调用。
 
-## 版本字段
+## 协议与路由字段
 
-ZooKeeper Provider URL 中几个容易混淆的字段含义不同：
+Provider URL 中与这条调用有关的字段：
 
-- `release=2.7.3`：Provider 使用的 Dubbo 框架发行版本，不用于选择线协议。
 - `dubbo=2.0.2`：Dubbo 经典协议版本。原生请求体的首字段也写入 `2.0.2`。
 - `version=...`：服务版本，会写入请求体的 service version 和 attachments。
 - `group=...`：服务分组，会写入 attachments。
-- URL scheme `dubbo://`：选择原生 Dubbo2 TCP 执行器。
-- URL scheme `tri://`：选择独立的 `TripleDubboActuatorSuite`；其第一期能力见 [Triple 第一期协议](triple.md)。
-
-因此执行器选择依据是 Provider URL 的 scheme，而不是 `release` 的大小。
+- `dubbo://`：选择原生 TCP 执行器；`tri://` 的 HTTP/JSON 请求见 [Triple](triple.md)。
 
 ## 16 字节帧头
 
@@ -31,7 +27,7 @@ ZooKeeper Provider URL 中几个容易混淆的字段含义不同：
 
 ## 泛化请求体
 
-Body 是连续的 Hessian2 值，不是一个 JSON 对象。当前实现依次编码：
+Body 依次编码以下 Hessian2 值：
 
 1. Dubbo protocol version：`"2.0.2"`
 2. Service path：完整接口名
@@ -42,6 +38,8 @@ Body 是连续的 Hessian2 值，不是一个 JSON 对象。当前实现依次�
 7. Java 参数类型名数组，例如 `["java.lang.String", "java.lang.Long"]`
 8. 参数值数组
 9. Attachments Map
+
+Java 参数类型由调用方指定，或由[元数据模块](../architecture/metadata.md)推断；泛化调用不要求 .NET 持有 Java 接口 JAR。
 
 默认 attachments 包含：
 
@@ -90,19 +88,10 @@ Body 是连续的 Hessian2 值，不是一个 JSON 对象。当前实现依次�
 
 经典 Dubbo 响应默认不包含 Provider 方法执行耗时，因此原生结果的 `ServiceElapsedAvailable` 为 `false`。
 
-## 当前边界
+## 支持范围与连接行为
 
 - 只实现 Hessian2（serialization id `2`）。
-- 使用 `$invoke` 泛化调用，不要求 .NET 持有 Java 接口 jar。
-- `DubboClient.QueryAsync(endpoint, arguments)` 会读取并缓存精确签名：Provider `release >= 2.7.3` 时优先使用元数据中心，失败后回退到 Telnet `ls -l`；已知低版本直接使用 Telnet；无法识别版本时先尝试元数据中心。
-- 元数据中心地址默认复用注册中心，也可以通过 `MetadataCenterAddress` 和 `MetadataRootPath` 单独配置。
-- Telnet 元数据和“不支持 Telnet”的失败结论都按服务缓存，一个 `DubboClient` 生命周期内只探测一次；若后续创建元数据节点，ZooKeeper watch 会切换回优先级更高的元数据中心结果。
-- 注册中心或元数据中心的瞬时连接错误不会被永久缓存；后续调用会重试高优先级来源，但会复用已有的 Telnet 正/负缓存，不会重复连接。元数据中心只返回部分方法/重载时，解析失败的目标方法会再用 Telnet 结果补全一次。
-- Telnet 扩展若输出带泛型参数的源码式类型名，写入 `$invoke` 的 `parameterTypes` 前会按 Java 类型擦除为可加载的原始类名。
-- Provider 两种来源都无法提供元数据时，零参数方法仍可直接调用；有参数的方法会抛出包含两路失败原因的 `DubboMetadataException`，并提示使用显式签名重载，避免把 `int`、`Integer`、`long`、`Long` 猜错。
 - 单个 TCP 连接通过 Request ID 复用并发请求；写入串行化，响应可以乱序返回。
 - Body 默认限制为 8 MiB。
 - 会应答 Provider 发来的双向 event/heartbeat 帧。
-- 连接写入失败后不会自动重发业务请求，以避免不确定状态下的重复调用；后续请求会重新建连。
-
-Telnet 实现仍不承载原生业务调用；它只在上述规则要求时，以一次性的 `ls -l` 连接作为方法签名兜底来源，也继续支持 `ls`、`status`、`trace` 等显式诊断。
+- 连接写入失败后不自动重发业务请求；后续请求重新建连。

@@ -1,8 +1,8 @@
-# First-phase Triple Implementation
+# Triple HTTP/JSON (Java Interface Unary)
 
 [中文](../../zh/protocols/triple.md) · [English home](../index.md)
 
-`TripleDubboActuatorSuite` handles Dubbo 3.3+ Java Interface Unary HTTP/JSON calls. The service driver selects it for a registered `tri://` Provider URL.
+For a `tri://` Provider, `TripleDubboActuatorSuite` calls Dubbo 3.3+ Java Interface unary methods over HTTP/1.1 and JSON.
 
 ## Request format
 
@@ -10,7 +10,6 @@
 - Path: `/{full Java interface name}/{method name}`.
 - Content-Type: `application/json`.
 - Body: a JSON array in method-parameter order. No arguments use `[]`; even a single argument remains an array, such as `[false]`.
-- The first implementation uses HTTP/1.1. Although a Dubbo 3.3 Triple port can also accept HTTP/2 and HTTP/3, these are outside the current implementation scope.
 
 Example:
 
@@ -24,7 +23,7 @@ tri-service-timeout: 10000
 [false]
 ```
 
-Dubbo 3.3.6's default Triple HTTP/JSON mapping cannot reliably distinguish every Java overload: when an overload has no arguments, `~signature` may still match both methods; `[` in a primitive-array signature also interacts with URL encoding. When `DubboClient` finds multiple signatures for one method, it restricts selection to native `dubbo://` Providers **before load balancing**. If only `tri://` Providers are registered, it returns an explicit compatibility error instead of silently calling the wrong overload. Non-overloaded methods can continue over Triple HTTP/JSON.
+When a Java method has multiple signatures, the client restricts selection to `dubbo://` before load balancing if metadata reveals the overloads. With only `tri://` Providers, it returns a compatibility failure result. Non-overloaded methods can still use Triple HTTP/JSON.
 
 ## Service routing and attachments
 
@@ -38,10 +37,10 @@ For a 2xx response, the raw JSON body is preserved. For a non-2xx response, `Que
 
 - The Provider URL's `timeout` takes precedence over the default `DubboRequestTimeout` and can be longer or shorter; the minimum is 1 ms.
 - The per-call deadline covers both response headers and the complete body. The internal `HttpClient.Timeout` is infinite so it does not compete with the per-call deadline.
-- `SendQuery(invocation, cancellationToken)` keeps the Native/Triple failure-result contract: caller cancellation returns `QuerySuccess=false` rather than throwing. Triple errors distinguish `canceled by caller` from `timed out after N ms`; if both happen, caller cancellation takes precedence. The caller should inspect the result/token to decide whether to stop a batch of calls.
-- Host/port constructors accept DNS names, IPv4, and bracketed or unbracketed IPv6. The `IPEndPoint` constructor also supports IPv6.
+- `SendQuery(invocation, cancellationToken)` returns `QuerySuccess=false` on caller cancellation and distinguishes cancellation from request timeouts in its error message. If both occur, caller cancellation takes precedence.
+- For a directly constructed actuator, host/port constructors accept DNS names, IPv4, and bracketed or unbracketed IPv6. The `IPEndPoint` constructor also supports IPv6. ZooKeeper-discovered addresses follow the [registry module’s IP restriction](../architecture/registry.md).
 
-## First-phase boundaries
+## Support
 
 Supported:
 
@@ -57,11 +56,3 @@ Not supported:
 - Binary gRPC/Triple framing.
 - Client-side negotiation of TLS, HTTP/2, or HTTP/3.
 - Dubbo 3 application-level service discovery.
-
-## Design references
-
-- [Apache Dubbo: Java Interface + Triple](https://dubbo.apache.org/en/overview/mannual/java-sdk/tasks/protocols/triple/interface/)
-- [Apache Dubbo: Triple Protocol Specification](https://dubbo.apache.org/en/overview/reference/protocols/triple-spec/)
-- [Apache Dubbo: Triple 3.3 New Features](https://dubbo.apache.org/en/overview/mannual/java-sdk/reference-manual/protocol/triple-3.3/)
-
-The implementation was also checked against the HTTP/JSON decoder, `DefaultRequestMappingRegistry`, `TypeUtils.buildSig`, `TripleHeaderEnum`, and group/version routing conditions in the Apache Dubbo 3.3.6 source.

@@ -1,9 +1,8 @@
-# Triple 第一期实现说明
+# Triple HTTP/JSON（Java Interface Unary）
 
 [English](../../en/protocols/triple.md) · [中文首页](../index.md)
 
-`TripleDubboActuatorSuite` 面向 Dubbo 3.3+ 的 Java Interface Unary HTTP/JSON
-调用。注册中心返回 `tri://` Provider URL 时，`DubboServiceDriver` 会选择该专用执行器。
+`tri://` Provider 由 `TripleDubboActuatorSuite` 通过 HTTP/1.1 和 JSON 调用 Dubbo 3.3+ Java Interface 的一元方法。
 
 ## 请求格式
 
@@ -12,8 +11,6 @@
 - Content-Type：`application/json`
 - 请求正文：按方法参数顺序组成的 JSON 数组；无参数为 `[]`，单参数也必须保留数组，
   例如 `[false]`
-- 第一期固定使用 HTTP/1.1；Dubbo 3.3 Triple 同一端口可以接受 HTTP/1、HTTP/2
-  和 HTTP/3，但后两者不属于当前实现目标
 
 示例：
 
@@ -27,11 +24,7 @@ tri-service-timeout: 10000
 [false]
 ```
 
-Dubbo 3.3.6 的默认 Triple HTTP/JSON 映射不能可靠区分所有 Java 重载：当同名方法中
-包含无参重载时，`~signature` 仍可能同时匹配无参方法；基本类型数组签名中的 `[` 还会
-受到 URL 编码影响。因此 `DubboClient` 发现一个方法存在多个签名时，会在负载均衡前
-限定使用 `dubbo://` 原生协议节点。若服务只注册了 `tri://` 节点，会返回明确的兼容性
-错误，避免静默调用到错误重载。非重载方法继续使用 Triple HTTP/JSON。
+同名方法有多个 Java 签名时，客户端若能从元数据识别重载，就在负载均衡前限定使用 `dubbo://`；若只有 `tri://` Provider，则返回兼容性失败结果。非重载方法仍可使用 Triple HTTP/JSON。
 
 ## 服务路由和附件
 
@@ -53,10 +46,10 @@ Provider 返回的错误正文同时写入 `ErrorMeaasge`。响应头会保存�
 
 - Provider URL 的 `timeout` 优先于 `DubboRequestTimeout` 默认值，可比默认值更长或更短；最少为 1 ms。
 - 每次调用的截止时间同时覆盖响应头和完整响应体。内部 `HttpClient.Timeout` 为无限，不与调用级截止时间竞争。
-- `SendQuery(invocation, cancellationToken)` 保持 Native/Triple 的失败结果约定：调用方取消不抛出取消异常，而是返回 `QuerySuccess=false`。Triple 错误信息区分 `canceled by caller` 和 `timed out after N ms`，两者同时发生时优先归为调用方取消。上层需要自行检查结果/令牌决定整批调用是否结束。
-- 地址/端口构造器支持域名、IPv4、有括号或无括号的 IPv6；`IPEndPoint` 构造器同样支持 IPv6。
+- `SendQuery(invocation, cancellationToken)` 遇到调用方取消会返回 `QuerySuccess=false`，并在错误信息中区分调用方取消和请求超时。两者同时发生时优先归为调用方取消。
+- 直接创建执行器时，地址/端口构造器支持域名、IPv4、有括号或无括号的 IPv6；`IPEndPoint` 构造器同样支持 IPv6。通过 ZooKeeper 发现的地址仍受[注册模块的 IP 限制](../architecture/registry.md)约束。
 
-## 第一期边界
+## 支持范围
 
 当前支持：
 
@@ -73,13 +66,3 @@ Provider 返回的错误正文同时写入 `ErrorMeaasge`。响应头会保存�
 - gRPC/Triple 二进制 framing
 - TLS、HTTP/2、HTTP/3 的客户端协商
 - Dubbo 3 应用级服务发现
-
-## 设计依据
-
-- [Apache Dubbo：Java Interface + Triple](https://dubbo.apache.org/en/overview/mannual/java-sdk/tasks/protocols/triple/interface/)
-- [Apache Dubbo：Triple Protocol Specification](https://dubbo.apache.org/en/overview/reference/protocols/triple-spec/)
-- [Apache Dubbo：Triple 3.3 New Features](https://dubbo.apache.org/en/overview/mannual/java-sdk/reference-manual/protocol/triple-3.3/)
-
-实现同时对照 Apache Dubbo 3.3.6 源码中的 HTTP/JSON 解码器、
-`DefaultRequestMappingRegistry`、`TypeUtils.buildSig`、`TripleHeaderEnum` 和
-group/version 路由条件。
