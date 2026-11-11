@@ -17,13 +17,13 @@ DubboClient.QueryAsync
           └─ 已选中 → LoadBalancedInvocation.InvokeAsync → 执行器 SendQuery → DubboRequestResult
 ```
 
-| 从这里开始读 | 问题与下一站 |
-| --- | --- |
-| [`DubboClient.QueryAsync` / `QueryInternalAsync`](../../../Clients/DubboClient.cs) | 参数如何进入？何时推断签名、检查协议、触发首次发现？→ [客户端](client.md) |
-| [`CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) / [`DubboMetadataManager.GetServiceMethodsAsync`](../../../Clients/DubboMetadataManager.cs) | Java 签名从何而来，缺失时怎样处理？→ [元数据](metadata.md) |
-| [`ConcurrentGetProviderEndPoints` / `GetSeviceProviderEndPointsAsync`](../../../Clients/DubboClient.cs) | 谁查地址、谁安装订阅？→ [注册与发现](registry.md) |
-| [`DubboDriverCollection.GetDubboActuatorSuite`](../../../Clients/DubboDriverCollection.cs) / [`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) | 哪份状态可用于选择、谁保护在途调用？→ [选择与预留](selection.md) |
-| [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 预留怎样包裹实际发送与释放？→ [传输](transport.md) |
+| 阶段 | 做什么 | 模块说明 |
+| --- | --- | --- |
+| 调用入口 | `QueryAsync` 整理参数，`QueryInternalAsync` 协调协议要求、发现与发送。 | [客户端](client.md) |
+| 方法签名 | 需要推断 Java 类型时获取方法定义、匹配重载，构造调用。 | [元数据](metadata.md) |
+| 地址发现 | 服务没有 Driver 或端点时查询 Provider，监听地址变化。 | [注册与发现](registry.md) |
+| 选择与预留 | Driver 维护候选，按策略选择执行器并保护在途调用。 | [服务选择](selection.md) |
+| 协议发送 | 执行器编码请求、收取响应；调用完成后归还预留。 | [传输](transport.md) |
 
 元数据查询**也可能先发现 Provider**；已有 Driver 的调用不必每次查询注册中心。上图是分支导航，不是每次请求的固定执行顺序。
 
@@ -47,5 +47,3 @@ Nacos: HandleNacosProviderChangedAsync ───────────┼─ �
 | 可调用 Provider 候选、选择与预留 | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) 及 [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | 注册发现的查询结果缓存 |
 | Java 方法与类型定义 | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | 可调用 Provider 列表 |
 | 注册连接引用及客户端执行器寿命 | [`DubboClient`](../../../Clients/DubboClient.cs)；底层连接由共享 storage 复用 | 将连接独占或把 watcher 当成可单独退订 |
-
-先从[公开 API 测试](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs)、[元数据测试](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs)和[Driver 测试](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs)核对对应路径；真实 Provider 的运行条件在[端到端环境指南](../../../Tests/EndToEndTestEnvironment/README.md)。

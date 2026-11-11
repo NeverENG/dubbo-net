@@ -17,13 +17,13 @@ DubboClient.QueryAsync
           └─ selected → LoadBalancedInvocation.InvokeAsync → actuator SendQuery → DubboRequestResult
 ```
 
-| Start reading here | Question and next page |
-| --- | --- |
-| [`DubboClient.QueryAsync` / `QueryInternalAsync`](../../../Clients/DubboClient.cs) | Where do arguments enter? When are types inferred, protocol checked, and initial discovery triggered? → [Client](client.md) |
-| [`CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) / [`DubboMetadataManager.GetServiceMethodsAsync`](../../../Clients/DubboMetadataManager.cs) | Where do Java signatures come from, and what if they are unavailable? → [Metadata](metadata.md) |
-| [`ConcurrentGetProviderEndPoints` / `GetSeviceProviderEndPointsAsync`](../../../Clients/DubboClient.cs) | Who looks up addresses and installs subscriptions? → [Registry and discovery](registry.md) |
-| [`DubboDriverCollection.GetDubboActuatorSuite`](../../../Clients/DubboDriverCollection.cs) / [`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) | Which state is selectable, and who protects in-flight calls? → [Selection and reservation](selection.md) |
-| [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | How does a reservation wrap dispatch and release? → [Transport](transport.md) |
+| Stage | What it does | Module guide |
+| --- | --- | --- |
+| Call entry | `QueryAsync` prepares arguments; `QueryInternalAsync` coordinates protocol requirements, discovery, and dispatch. | [Client](client.md) |
+| Method signature | When Java types need inference, loads definitions, resolves overloads, and constructs the invocation. | [Metadata](metadata.md) |
+| Address discovery | Looks up Providers when a service has no driver or endpoints, and receives address changes. | [Registry and discovery](registry.md) |
+| Selection and reservation | The driver holds candidates, selects an actuator by policy, and protects in-flight calls. | [Service selection](selection.md) |
+| Protocol dispatch | The actuator encodes requests and receives responses; the reservation is released on completion. | [Transport](transport.md) |
 
 Metadata lookup **may itself discover Providers**; a call with an existing driver need not query the registry. The diagram is a map of branches, not a mandatory request pipeline.
 
@@ -47,5 +47,3 @@ Shutdown: DubboClient.Dispose → unsubscribe/release registry references, drive
 | Callable Provider candidates, selection, and reservation | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) and [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | A cache of registry lookup results |
 | Java method and type definitions | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | A list of callable Providers |
 | Registry connection references and client actuator lifetime | [`DubboClient`](../../../Clients/DubboClient.cs); the underlying connections are shared by storage | Exclusive connection ownership or an individually removable ZooKeeper watch |
-
-Check the [public API](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs), [metadata](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs), and [driver](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs) tests for each path; the [end-to-end environment guide](../../../Tests/EndToEndTestEnvironment/README.md) covers live Provider prerequisites.
