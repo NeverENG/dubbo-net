@@ -10,7 +10,7 @@
 
 公开的 `QueryAsync` 重载最终进入 `QueryInternalAsync`。调用方未明确给出 Java 参数类型时，客户端先通过元数据解析方法签名并构造 `DubboInvocation`；显式指定类型时可直接构造调用，仍可能尽力检查同名重载的协议要求。签名无法确定的错误发生在发送之前。
 
-`QueryInternalAsync` 向 `DubboDriverCollection` 请求与协议要求匹配的执行器，并预留本次调用。若服务尚无 Driver，或 Driver 没有 Provider 端点，就调用注册发现，取得地址后建立或更新 Driver，再重新选择。若候选存在但没有可用执行器，则返回失败结果，而不是把它当作“注册中心没有 Provider”。选中后，客户端把调用交给执行器；`LoadBalancedInvocation` 包裹发送过程，并在完成时归还预留。
+`QueryInternalAsync` 向 `DubboDriverCollection` 请求与协议要求匹配的执行器，并预留本次调用。服务尚无 Driver 时，客户端调用注册发现；发现未报错便将端点列表交给新 Driver，再尝试选择，列表为空也不会发送请求。已有 Driver 但没有 Provider 端点时，客户端会主动重查，取得新端点才更新 Driver 并重选。若候选存在但没有可用执行器，则返回失败结果，而不是把它当作“注册中心没有 Provider”。选中后，客户端把调用交给执行器；`LoadBalancedInvocation` 包裹发送过程，并在完成时归还预留。
 
 ## 变化与关闭
 
