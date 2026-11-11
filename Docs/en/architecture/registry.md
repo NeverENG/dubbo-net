@@ -1,45 +1,41 @@
-# Registry and Discovery: Where Addresses Come From
+# Registry and Discovery: Where Provider Addresses Come From
 
 [Call-path overview](index.md) · [中文](../../zh/architecture/registry.md)
 
-## Responsibility and boundary
+## Responsibility
 
-Registry discovery answers “which Provider addresses currently serve this Java interface?” It reads classic interface-level ZooKeeper `providers` nodes or Nacos Naming instances, returns endpoints to its caller, and establishes a path for change notifications. **A discovery result is not a second cache of callable Providers**: the [service driver](selection.md) still owns and selects the candidates for business calls. Java method definitions belong to [metadata](metadata.md); sending requests belongs to [transport](transport.md).
+Registry discovery looks up Provider addresses for a Java interface. It reads interface-level ZooKeeper `providers` nodes or Nacos Naming instances, converts them into endpoints for its caller, and receives address-change notifications. It **discovers addresses** rather than storing the candidates for business calls. The [service driver](selection.md) maintains and selects those candidates; [metadata](metadata.md) handles Java method definitions, and [transport](transport.md) sends requests.
 
-On the current `main`, these operations still live in `DubboClient`: `ConcurrentGetProviderEndPoints` tracks in-flight lookups, `GetSeviceProviderEndPointsAsync` queries the registry, and `ReflushProviderAsync` decides when to update a driver. The `Clients/` location describes today's source, not a permanent ownership decision. [#36](https://github.com/apache/dubbo-net/pull/36), still under review, changes source ownership; this page does not present it as merged behavior.
+## Lookup and handoff
 
-## First call and metadata lookup
+When a business call has no service driver, `DubboClient.QueryInternalAsync` looks up Providers through `ConcurrentGetProviderEndPoints`. It creates the driver only after finding endpoints, then continues selection. A call with an existing driver but no endpoints also actively looks up Providers: new endpoints update the driver and trigger another selection attempt; otherwise the call fails. Having candidates but no available actuator is a selection problem, not a reason to rediscover addresses.
 
-If `QueryInternalAsync` cannot find a service driver, it looks up Providers by service name through `ConcurrentGetProviderEndPoints`. Only a successful discovery leads to `DubboDriverCollection.AddDubboServiceDriver`, followed by another selection attempt. A call with an existing driver but no endpoints also queries once: it updates and reselects if Providers appear, otherwise returns a failure result. **An existing candidate set with no available actuator** is a different selection failure; repeatedly discovering Providers is not its remedy. Follow [`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs) and [`DubboDriverCollection.GetDubboActuatorSuite`](../../../Clients/DubboDriverCollection.cs).
+Before reading Java method definitions, metadata may also find Providers through `GetProviderEndPointsForMetadataAsync`. This reuses discovery without creating a business-call driver. Results go to the relevant consumer rather than becoming another callable-candidate list inside registry discovery.
 
-Before reading Java method definitions, [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) may also use `GetProviderEndPointsForMetadataAsync` to locate Providers. This reuses the discovery path but **does not create a business-call driver**. Looking up a service for metadata therefore does not imply that it has callable candidates.
-
-| Source | Current query and result | Change notification |
+| Source | How addresses are found | How changes are reported |
 | --- | --- | --- |
-| ZooKeeper | Checks the interface's `providers` path, reading and parsing `dubbo://` and `tri://` children. Missing nodes/endpoints return error messages; exhausted connection retries can throw. | The nonempty-children branch calls `GetChildrenAsync` with `DubboClientZookeeperWatcher`, installing a **one-shot** children watch. |
-| Nacos Naming | Finds services for an interface and group, converting only healthy, enabled instances to endpoints. No healthy endpoints and query failures produce errors. | `MyNacos.GetProviderEndPointsAsync` registers a Naming change callback under this client. |
+| ZooKeeper | Reads and parses `dubbo://` and `tri://` children under the interface's `providers` path. | Installs a one-shot children watch when children exist; an event triggers discovery for the service. With no children, discovery reports no Provider, and a later business call actively retries. |
+| Nacos Naming | Queries instances by interface and group, using only healthy, enabled instances. | Registers a Naming change callback for the client and refreshes the affected service on changes. |
 
-Both sources meet in [`GetSeviceProviderEndPointsAsync`](../../../Clients/DubboClient.cs); Nacos filtering and subscription live in [`MyNacos.GetProviderEndPointsAsync`](../../../Clients/RegistryClient/MyNacos.cs). A returned error message becomes a failure result on the call path, while an exhausted ZooKeeper SDK retry may still throw; not every failure is an empty Provider list. The current in-flight task reuse should also not be read as a guarantee that exactly one SDK query starts under every concurrency timing.
+A missing path or usable endpoint, as well as a failed query, prevents this lookup from returning addresses; a query failure is not treated as all Providers going offline. Exhausting ZooKeeper connection retries can also throw an exception.
 
-## Change notifications and state refresh
+## Changes and state updates
 
-On a Provider-children event, `DubboClientZookeeperWatcher.process` parses the service path: an existing driver leads to `ReflushProviderAsync` by path; a metadata-only cache leads to a cache refresh; with neither, it does not build a new driver. Nacos `HandleNacosProviderChangedAsync` uses the same existing-driver/metadata-only distinction. **A change event does not replay the business `QueryAsync`.** Follow the [ZooKeeper watcher](../../../Clients/DubboClientZookeeperWatcher.cs) and [Nacos callback](../../../Clients/DubboClient.cs).
+The ZooKeeper watcher identifies the service from the changed path; Nacos callbacks handle the corresponding service. If it has a driver, discovery updates its candidates. If it only has cached metadata, the cache is refreshed. With neither a driver nor cached metadata, the notification does not create a new driver. Notifications do not replay business requests.
 
-When discovery returns new endpoints, `ReflushProviderAsync` updates the driver and requests a refresh of any cached service metadata. An explicit “no Provider / no healthy Provider” result updates an existing driver's candidates to empty; an ordinary lookup error is logged rather than interpreted as “all Providers are down.” Disconnection and session expiration enter the watcher's reconnect path; after recovery it attempts to rediscover each service. Callback and reconnect are separate asynchronous entries; this does not imply that they are fully drained during client disposal.
+After rediscovery returns endpoints, `ReflushProviderAsync` updates the existing driver and requests a refresh of cached service metadata. An explicit no-Provider or no-healthy-Provider result clears an existing driver's candidates; an ordinary lookup error is logged without clearing them. On ZooKeeper disconnection or session expiration, the watcher's reconnect path attempts rediscovery for each service after the connection recovers.
 
-## Subscriptions and shutdown
+## Subscription and connection lifetime
 
-The current `DubboClient` registers Nacos Naming subscriptions under its own subscriber identity. On `Dispose`, it calls `RemoveSubscriber(this)` before releasing its registry connection reference. The metadata manager owns and removes its separate Nacos **Config** subscriber; removing a Naming subscriber must not remove Config subscriptions. `MultiMyZookeeperStorage` / `MultiMyNacosStorage` reuse underlying connections by address and count references. The metadata center may reuse a same-address registry connection; a distinct address holds another reference. Disposal releases **this client's references**, not the connections of other clients sharing them.
+Nacos Naming subscriptions use `DubboClient` as the subscriber; disposing the client removes its Naming subscriptions. The metadata manager owns and removes its separate Nacos Config subscriptions. ZooKeeper children watches are one-shot notifications, and their callback checks whether the client has been disposed.
 
-ZooKeeper child watches are one-shot notifications without a per-watcher unsubscribe API; the callback checks whether the client is disposed. If the Provider path **exists but has zero children**, the current discovery method returns before installing a children watch. A Provider appearing later might not trigger automatic refresh; the next business call still attempts active discovery. The failed-reload guard and shutdown-interleaving risks remain open in [#37](https://github.com/apache/dubbo-net/issues/37). This page records the current behavior, not a completed fix.
+`MultiMyZookeeperStorage` and `MultiMyNacosStorage` reuse underlying connections by address and count references; a metadata center at the same address can also reuse the registry connection. Disposing a client releases its own connection references rather than closing a shared connection still used by other clients.
 
-## Source and verification
+## Source entry points
 
-| File | Responsibility relevant here |
+| File | Responsibility |
 | --- | --- |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Query handoff, errors, driver/metadata refresh routing, Nacos subscriber identity, and registry-reference release. |
-| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | Children, disconnection, and expired-session events; does not own callable Provider candidates. |
-| [`Clients/RegistryClient/MyZookeeper.cs`](../../../Clients/RegistryClient/MyZookeeper.cs) / [`MyNacos.cs`](../../../Clients/RegistryClient/MyNacos.cs) | SDK queries, connection retries, and Nacos Naming notifications keyed by subscriber. |
-| [`Clients/RegistryClient/MultiMyZookeeperStorage.cs`](../../../Clients/RegistryClient/MultiMyZookeeperStorage.cs) / [`MultiMyNacosStorage.cs`](../../../Clients/RegistryClient/MultiMyNacosStorage.cs) | Address-keyed connection reuse and reference counts, not the service driver's candidate set. |
-
-[ZooKeeper unit tests](../../../Tests/UnitTestForDubboNet/MyZookeeperTest.cs) check the unavailable-connection error boundary; [Nacos tests](../../../Tests/UnitTestForDubboNet/MyNacosTest.cs) cover instance lookup, subscriber isolation, and directory changes. They do not replace a live test of empty-node transitions and full reconnect; see the [end-to-end environment guide](../../../Tests/EndToEndTestEnvironment/README.md) for prerequisites.
+| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Discovery entry points for calls and metadata, result handoff, driver/metadata refresh after changes, and subscription cleanup. |
+| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | Entry point for ZooKeeper child changes, disconnections, and session expiration. |
+| [`Clients/RegistryClient/MyZookeeper.cs`](../../../Clients/RegistryClient/MyZookeeper.cs) / [`MyNacos.cs`](../../../Clients/RegistryClient/MyNacos.cs) | Registry SDK queries, connection retries, and Nacos Naming notifications. |
+| [`Clients/RegistryClient/MultiMyZookeeperStorage.cs`](../../../Clients/RegistryClient/MultiMyZookeeperStorage.cs) / [`MultiMyNacosStorage.cs`](../../../Clients/RegistryClient/MultiMyNacosStorage.cs) | Connection reuse by address and reference counting. |
