@@ -10,16 +10,16 @@
 
 `DubboDriverCollection.AddDubboServiceDriver` 按服务建立或更新 Driver，并把端点关联到可复用的执行器。`GetDubboActuatorSuite` 向客户端区分：尚无 Driver、Driver 没有端点、有候选但没有可用执行器，以及选中执行器。前两种情况可以触发[客户端](client.md)主动发现；资源不可用不代表注册中心无 Provider。
 
-[`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) 从当前候选中按协议、版本和分组过滤，再按配置的负载策略选择端点。选择与增加在途引用处于同一同步边界，防止 Provider 被移除时正在发送的调用失去所用资源。
+`DubboServiceDriver.SelectAndReserve` 从当前候选中按协议、版本和分组过滤，再按配置的负载策略选择端点。选择与增加在途引用处于同一同步边界，防止 Provider 被移除时正在发送的调用失去所用资源。
 
 ## 更新与释放
 
-Provider 变化时，Driver 用新的发现结果更新候选；明确没有 Provider 时可以清空候选。已经预留的调用仍由 [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) 包裹：发送结束后记录成功或失败及耗时，并归还预留。在途调用归还后，移除的 Provider 所用执行器才能按引用关系释放。客户端关闭时也会释放持有的 Driver 与共享执行器资源。
+Provider 变化时，Driver 用新的发现结果更新候选；明确没有 Provider 时可以清空候选。已经预留的调用仍由 `LoadBalancedInvocation.InvokeAsync` 包裹：发送结束后记录成功或失败及耗时，并归还预留。在途调用归还后，移除的 Provider 所用执行器才能按引用关系释放。客户端关闭时也会释放持有的 Driver 与共享执行器资源。
 
 ## 源码入口
 
 | 文件 | 职责 |
 | --- | --- |
-| [`Clients/DubboDriverCollection.cs`](../../../Clients/DubboDriverCollection.cs) | 按服务管理 Driver、交接发现结果与复用执行器。 |
-| [`Clients/DubboServiceDriver.cs`](../../../Clients/DubboServiceDriver.cs) | 维护候选、过滤与负载选择、预留及方法统计。 |
-| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 包裹一次发送，完成统计并归还预留。 |
+| `DubboDriverCollection.cs` | 按服务管理 Driver、交接发现结果与复用执行器。 |
+| `DubboServiceDriver.cs` | 维护候选、过滤与负载选择、预留及方法统计。 |
+| `LoadBalancedInvocation.cs` | 包裹一次发送，完成统计并归还预留。 |

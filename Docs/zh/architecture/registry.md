@@ -35,7 +35,7 @@ Nacos Naming 订阅以 `DubboClient` 为订阅者，客户端释放时移除自�
 
 | 文件 | 职责 |
 | --- | --- |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | 业务调用与元数据查询的发现入口、结果交接、变化后的 Driver/元数据刷新及订阅释放。 |
-| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | ZooKeeper 子节点变化、断线和会话过期的通知入口。 |
-| [`Clients/RegistryClient/MyZookeeper.cs`](../../../Clients/RegistryClient/MyZookeeper.cs) / [`MyNacos.cs`](../../../Clients/RegistryClient/MyNacos.cs) | 注册中心 SDK 查询、连接重试及 Nacos Naming 通知。 |
-| [`Clients/RegistryClient/MultiMyZookeeperStorage.cs`](../../../Clients/RegistryClient/MultiMyZookeeperStorage.cs) / [`MultiMyNacosStorage.cs`](../../../Clients/RegistryClient/MultiMyNacosStorage.cs) | 按地址复用连接并管理引用计数。 |
+| `DubboClient.cs` | 业务调用与元数据查询的发现入口、结果交接、变化后的 Driver/元数据刷新及订阅释放。 |
+| `DubboClientZookeeperWatcher.cs` | ZooKeeper 子节点变化、断线和会话过期的通知入口。 |
+| `MyZookeeper.cs` / `MyNacos.cs` | 注册中心 SDK 查询、连接重试及 Nacos Naming 通知。 |
+| `MultiMyZookeeperStorage.cs` / `MultiMyNacosStorage.cs` | 按地址复用连接并管理引用计数。 |

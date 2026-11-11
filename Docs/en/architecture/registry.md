@@ -35,7 +35,7 @@ Nacos Naming subscriptions use `DubboClient` as the subscriber; disposing the cl
 
 | File | Responsibility |
 | --- | --- |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Discovery entry points for calls and metadata, result handoff, driver/metadata refresh after changes, and subscription cleanup. |
-| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | Entry point for ZooKeeper child changes, disconnections, and session expiration. |
-| [`Clients/RegistryClient/MyZookeeper.cs`](../../../Clients/RegistryClient/MyZookeeper.cs) / [`MyNacos.cs`](../../../Clients/RegistryClient/MyNacos.cs) | Registry SDK queries, connection retries, and Nacos Naming notifications. |
-| [`Clients/RegistryClient/MultiMyZookeeperStorage.cs`](../../../Clients/RegistryClient/MultiMyZookeeperStorage.cs) / [`MultiMyNacosStorage.cs`](../../../Clients/RegistryClient/MultiMyNacosStorage.cs) | Connection reuse by address and reference counting. |
+| `DubboClient.cs` | Discovery entry points for calls and metadata, result handoff, driver/metadata refresh after changes, and subscription cleanup. |
+| `DubboClientZookeeperWatcher.cs` | Entry point for ZooKeeper child changes, disconnections, and session expiration. |
+| `MyZookeeper.cs` / `MyNacos.cs` | Registry SDK queries, connection retries, and Nacos Naming notifications. |
+| `MultiMyZookeeperStorage.cs` / `MultiMyNacosStorage.cs` | Connection reuse by address and reference counting. |

@@ -22,6 +22,6 @@ Provider notifications enter through the ZooKeeper watcher or Nacos callback. An
 
 | File | Responsibility |
 | --- | --- |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Public call entry, signature and protocol handoff, discovery and selection coordination, reconnect, and shutdown. |
-| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | Passes ZooKeeper Provider and connection events to the client. |
-| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Wraps a reserved dispatch and releases its reservation on completion. |
+| `DubboClient.cs` | Public call entry, signature and protocol handoff, discovery and selection coordination, reconnect, and shutdown. |
+| `DubboClientZookeeperWatcher.cs` | Passes ZooKeeper Provider and connection events to the client. |
+| `LoadBalancedInvocation.cs` | Wraps a reserved dispatch and releases its reservation on completion. |

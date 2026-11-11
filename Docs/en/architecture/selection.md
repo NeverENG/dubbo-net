@@ -10,16 +10,16 @@ Service selection turns addresses from [registry discovery](registry.md) into **
 
 `DubboDriverCollection.AddDubboServiceDriver` creates or updates a service driver and associates endpoints with reusable actuators. `GetDubboActuatorSuite` distinguishes no driver, a driver with no endpoints, candidates with no available actuator, and successful selection. The first two can cause the [client](client.md) to discover Providers; unavailable actuator resources do not mean the registry has no Provider.
 
-[`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) filters current candidates by protocol, version, and group, then selects an endpoint according to the configured load-balancing strategy. Selection and incrementing the in-flight reference share a synchronization boundary, protecting a call's resources if a Provider is removed during dispatch.
+`DubboServiceDriver.SelectAndReserve` filters current candidates by protocol, version, and group, then selects an endpoint according to the configured load-balancing strategy. Selection and incrementing the in-flight reference share a synchronization boundary, protecting a call's resources if a Provider is removed during dispatch.
 
 ## Updates and release
 
-On Provider changes, the driver updates its candidates from discovery; an explicit no-Provider result can clear them. A reserved call is wrapped by [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs): after dispatch it records success or failure and elapsed time, then releases the reservation. Once in-flight calls finish, resources for a removed Provider can be released according to their references. Closing the client also releases its drivers and shared actuator resources.
+On Provider changes, the driver updates its candidates from discovery; an explicit no-Provider result can clear them. A reserved call is wrapped by `LoadBalancedInvocation.InvokeAsync`: after dispatch it records success or failure and elapsed time, then releases the reservation. Once in-flight calls finish, resources for a removed Provider can be released according to their references. Closing the client also releases its drivers and shared actuator resources.
 
 ## Source entry points
 
 | File | Responsibility |
 | --- | --- |
-| [`Clients/DubboDriverCollection.cs`](../../../Clients/DubboDriverCollection.cs) | Manages service drivers, hands off discovery results, and reuses actuators. |
-| [`Clients/DubboServiceDriver.cs`](../../../Clients/DubboServiceDriver.cs) | Maintains candidates, filters and load-balances them, reserves calls, and tracks per-method statistics. |
-| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Wraps a dispatch, completes statistics, and releases its reservation. |
+| `DubboDriverCollection.cs` | Manages service drivers, hands off discovery results, and reuses actuators. |
+| `DubboServiceDriver.cs` | Maintains candidates, filters and load-balances them, reserves calls, and tracks per-method statistics. |
+| `LoadBalancedInvocation.cs` | Wraps a dispatch, completes statistics, and releases its reservation. |

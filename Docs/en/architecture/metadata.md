@@ -8,9 +8,9 @@ Metadata obtains Java interface method names, parameter types, and overload defi
 
 ## Loading definitions and resolving signatures
 
-[`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) loads and caches definitions per service. Depending on Provider version and available sources, it reads from the metadata center or a short-lived Telnet `ls -l` query; Telnet can also supplement incomplete definitions. Locating a Provider may reuse registry discovery without creating a business-call driver. The metadata center can share the registry address or use a separate one.
+`DubboMetadataManager` loads and caches definitions per service. Depending on Provider version and available sources, it reads from the metadata center or a short-lived Telnet `ls -l` query; Telnet can also supplement incomplete definitions. Locating a Provider may reuse registry discovery without creating a business-call driver. The metadata center can share the registry address or use a separate one.
 
-When `QueryAsync` does not specify Java parameter types, [`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) obtains definitions, uses [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) to match arguments and overloads, and hands the resulting `DubboInvocation` with Java types back to the client for dispatch. Missing definitions or an ambiguous signature may raise `DubboMetadataException` before dispatch. With explicit types, the client can construct the invocation directly; it may still make a best-effort check for protocol requirements of same-name overloads rather than requiring every call to load metadata successfully.
+When `QueryAsync` does not specify Java parameter types, `DubboClient.CreateMetadataInvocationAsync` obtains definitions, uses `DubboMethodMetadataResolver.Resolve` to match arguments and overloads, and hands the resulting `DubboInvocation` with Java types back to the client for dispatch. Missing definitions or an ambiguous signature may raise `DubboMetadataException` before dispatch. With explicit types, the client can construct the invocation directly; it may still make a best-effort check for protocol requirements of same-name overloads rather than requiring every call to load metadata successfully.
 
 ## Cache and subscription lifetime
 
@@ -20,7 +20,7 @@ The manager caches definitions by service. Provider or metadata changes refresh 
 
 | File | Responsibility |
 | --- | --- |
-| [`Clients/DubboMetadataManager.cs`](../../../Clients/DubboMetadataManager.cs) | Loading definitions, choosing sources, per-service caching, refresh, and Config subscriptions. |
-| [`Clients/DubboMethodMetadataResolver.cs`](../../../Clients/DubboMethodMetadataResolver.cs) | Matches caller arguments against Java signatures and overloads. |
-| [`Clients/DubboTelnetMetadataResolver.cs`](../../../Clients/DubboTelnetMetadataResolver.cs) | Parses and supplements method definitions returned by Telnet. |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Constructs invocations when types need inference and checks protocol requirements for explicit calls. |
+| `DubboMetadataManager.cs` | Loading definitions, choosing sources, per-service caching, refresh, and Config subscriptions. |
+| `DubboMethodMetadataResolver.cs` | Matches caller arguments against Java signatures and overloads. |
+| `DubboTelnetMetadataResolver.cs` | Parses and supplements method definitions returned by Telnet. |
+| `DubboClient.cs` | Constructs invocations when types need inference and checks protocol requirements for explicit calls. |

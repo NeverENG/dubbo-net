@@ -8,9 +8,9 @@
 
 ## 定义获取与签名解析
 
-[`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) 按服务获取并缓存方法定义，根据 Provider 的版本和可用来源从元数据中心或短时 Telnet `ls -l` 查询，必要时用 Telnet 补全不完整的定义。定位 Provider 时可以复用注册发现，但元数据查询不会创建业务调用的 Driver。元数据中心既可与注册中心共用地址，也可单独配置。
+`DubboMetadataManager` 按服务获取并缓存方法定义，根据 Provider 的版本和可用来源从元数据中心或短时 Telnet `ls -l` 查询，必要时用 Telnet 补全不完整的定义。定位 Provider 时可以复用注册发现，但元数据查询不会创建业务调用的 Driver。元数据中心既可与注册中心共用地址，也可单独配置。
 
-当 `QueryAsync` 未指定 Java 参数类型，[`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) 获取定义，由 [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) 匹配参数和重载，构造带 Java 类型的 `DubboInvocation` 后交给客户端发送。如果缺少可用定义或签名存在歧义，可能在发送之前抛出 `DubboMetadataException`。调用方已明确指定类型时，客户端可以直接构造调用；同名重载的协议约束仍可能被尽力检查，而不是要求每次调用都先成功读取元数据。
+当 `QueryAsync` 未指定 Java 参数类型，`DubboClient.CreateMetadataInvocationAsync` 获取定义，由 `DubboMethodMetadataResolver.Resolve` 匹配参数和重载，构造带 Java 类型的 `DubboInvocation` 后交给客户端发送。如果缺少可用定义或签名存在歧义，可能在发送之前抛出 `DubboMetadataException`。调用方已明确指定类型时，客户端可以直接构造调用；同名重载的协议约束仍可能被尽力检查，而不是要求每次调用都先成功读取元数据。
 
 ## 缓存与订阅生命周期
 
@@ -20,7 +20,7 @@ Manager 按服务缓存定义；Provider 或元数据变化只刷新**已有缓�
 
 | 文件 | 职责 |
 | --- | --- |
-| [`Clients/DubboMetadataManager.cs`](../../../Clients/DubboMetadataManager.cs) | 方法定义的获取、来源选择、按服务缓存、刷新和 Config 订阅。 |
-| [`Clients/DubboMethodMetadataResolver.cs`](../../../Clients/DubboMethodMetadataResolver.cs) | 用实参匹配 Java 方法签名和重载。 |
-| [`Clients/DubboTelnetMetadataResolver.cs`](../../../Clients/DubboTelnetMetadataResolver.cs) | 解析并补全 Telnet 返回的方法定义。 |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | 需要推断类型时构造调用，以及显式调用的协议检查。 |
+| `DubboMetadataManager.cs` | 方法定义的获取、来源选择、按服务缓存、刷新和 Config 订阅。 |
+| `DubboMethodMetadataResolver.cs` | 用实参匹配 Java 方法签名和重载。 |
+| `DubboTelnetMetadataResolver.cs` | 解析并补全 Telnet 返回的方法定义。 |
+| `DubboClient.cs` | 需要推断类型时构造调用，以及显式调用的协议检查。 |

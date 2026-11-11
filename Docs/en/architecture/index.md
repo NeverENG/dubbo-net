@@ -44,6 +44,6 @@ Shutdown: DubboClient.Dispose → unsubscribe/release registry references, drive
 
 | State | Owner | Not the same as |
 | --- | --- | --- |
-| Callable Provider candidates, selection, and reservation | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) and [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | A cache of registry lookup results |
-| Java method and type definitions | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | A list of callable Providers |
-| Registry connection references and client actuator lifetime | [`DubboClient`](../../../Clients/DubboClient.cs); the underlying connections are shared by storage | Exclusive connection ownership or an individually removable ZooKeeper watch |
+| Callable Provider candidates, selection, and reservation | `DubboServiceDriver` and `DubboDriverCollection` | A cache of registry lookup results |
+| Java method and type definitions | `DubboMetadataManager` | A list of callable Providers |
+| Registry connection references and client actuator lifetime | `DubboClient`; the underlying connections are shared by storage | Exclusive connection ownership or an individually removable ZooKeeper watch |

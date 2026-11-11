@@ -44,6 +44,6 @@ Nacos: HandleNacosProviderChangedAsync ───────────┼─ �
 
 | 状态 | 持有者 | 不等于 |
 | --- | --- | --- |
-| 可调用 Provider 候选、选择与预留 | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) 及 [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | 注册发现的查询结果缓存 |
-| Java 方法与类型定义 | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | 可调用 Provider 列表 |
-| 注册连接引用及客户端执行器寿命 | [`DubboClient`](../../../Clients/DubboClient.cs)；底层连接由共享 storage 复用 | 将连接独占或把 watcher 当成可单独退订 |
+| 可调用 Provider 候选、选择与预留 | `DubboServiceDriver` 及 `DubboDriverCollection` | 注册发现的查询结果缓存 |
+| Java 方法与类型定义 | `DubboMetadataManager` | 可调用 Provider 列表 |
+| 注册连接引用及客户端执行器寿命 | `DubboClient`；底层连接由共享 storage 复用 | 将连接独占或把 watcher 当成可单独退订 |

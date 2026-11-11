@@ -22,6 +22,6 @@ Provider 变化通知经 ZooKeeper watcher 或 Nacos 回调进入客户端：已
 
 | 文件 | 职责 |
 | --- | --- |
-| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | 公开调用入口、签名与协议交接、发现与选择协调、重连及关闭。 |
-| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | 将 ZooKeeper Provider 变化与连接事件交给客户端处理。 |
-| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 包裹一次已预留的发送，并在完成时归还预留。 |
+| `DubboClient.cs` | 公开调用入口、签名与协议交接、发现与选择协调、重连及关闭。 |
+| `DubboClientZookeeperWatcher.cs` | 将 ZooKeeper Provider 变化与连接事件交给客户端处理。 |
+| `LoadBalancedInvocation.cs` | 包裹一次已预留的发送，并在完成时归还预留。 |
