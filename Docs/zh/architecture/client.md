@@ -1,19 +1,27 @@
-# 客户端：入口与编排边界
+# 客户端：调用入口与流程编排
 
 [调用链总览](index.md) · [English](../../en/architecture/client.md)
 
-## 沿入口读
+## 模块职责
 
-| 代码位置 | 读它要回答的问题 |
+`DubboClient` 接收调用方的 `QueryAsync` 请求，把服务名、方法名、参数和调用选项整理为一次调用，并协调[元数据](metadata.md)、[注册与发现](registry.md)、[服务选择](selection.md)和[传输](transport.md)。它决定何时交接到下一个模块，但不自己保存 Java 方法定义，也不执行负载均衡或协议收发。
+
+## 一次调用如何交接
+
+公开的 `QueryAsync` 重载最终进入 `QueryInternalAsync`。调用方未明确给出 Java 参数类型时，客户端先通过元数据解析方法签名并构造 `DubboInvocation`；显式指定类型时可直接构造调用，仍可能尽力检查同名重载的协议要求。签名无法确定的错误发生在发送之前。
+
+`QueryInternalAsync` 向 `DubboDriverCollection` 请求与协议要求匹配的执行器，并预留本次调用。若服务尚无 Driver，或 Driver 没有 Provider 端点，就调用注册发现，取得地址后建立或更新 Driver，再重新选择。若候选存在但没有可用执行器，则返回失败结果，而不是把它当作“注册中心没有 Provider”。选中后，客户端把调用交给执行器；`LoadBalancedInvocation` 包裹发送过程，并在完成时归还预留。
+
+## 变化与关闭
+
+Provider 变化通知经 ZooKeeper watcher 或 Nacos 回调进入客户端：已有 Driver 时重新发现并更新候选，只有元数据缓存时刷新定义。通知更新已有状态，不重新发起业务调用。ZooKeeper 连接断开或会话过期时，客户端尝试重连；连接恢复后逐服务重新发现。
+
+`Dispose` 结束客户端的消费者注册，移除自己的 Nacos Naming 订阅，并释放元数据管理器、Driver、执行器和注册连接引用。元数据的 Nacos Config 订阅由元数据管理器释放；底层注册连接可与其他客户端共享，因此释放的是本客户端持有的引用。
+
+## 源码入口
+
+| 文件 | 职责 |
 | --- | --- |
-| [`DubboClient.QueryAsync`](../../../Clients/DubboClient.cs) | 公开重载怎样得到 `DubboInvocation`，何时要求[元数据](metadata.md)推断 Java 类型？ |
-| [`QueryInternalAsync`](../../../Clients/DubboClient.cs) | 怎样检查协议约束、向[服务 Driver](selection.md)请求预留？没有 Driver 或没有候选时，何时转向[发现](registry.md)并再次选择？发现失败如何返回？ |
-| [`ReflushProviderAsync` / `HandleNacosProviderChangedAsync`](../../../Clients/DubboClient.cs) | Provider 事件怎样更新已有 Driver、按需刷新元数据缓存，而不是重新执行调用？ |
-| [`TryDoConnectRegistryTaskAsync` / `ReLoadDubboDriverCollection`](../../../Clients/DubboClient.cs) | ZooKeeper 断线后谁尝试重连、谁逐服务恢复？事件从 [`DubboClientZookeeperWatcher.process`](../../../Clients/DubboClientZookeeperWatcher.cs) 进入。 |
-| [`Dispose`](../../../Clients/DubboClient.cs) | 何时释放消费者注册、元数据管理器、注册连接引用、Driver 与共享执行器？ |
-
-## 交接与不负责的事
-
-客户端现在同时承担入口、发现协调、重连与释放；这张文档只描述**当前代码**，不宣称上述职责已完成拆分。Java 签名的定义由[元数据](metadata.md)处理；可调用 Provider 的状态和预留由[服务选择](selection.md)处理；请求编码由[传输执行器](transport.md)处理。现有的刷新防重入与关闭竞态不应仅因这里画出路径就被视作已解决，跟踪见 [#37](https://github.com/apache/dubbo-net/issues/37)。
-
-**核对：** [公开 API 契约测试](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs)、[Driver 状态测试](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs)；真实连接需要[端到端环境](../../../Tests/EndToEndTestEnvironment/README.md)。使用示例留在[使用说明](../../../readme_cn.md)，不在架构页重复。
+| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | 公开调用入口、签名与协议交接、发现与选择协调、重连及关闭。 |
+| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | 将 ZooKeeper Provider 变化与连接事件交给客户端处理。 |
+| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 包裹一次已预留的发送，并在完成时归还预留。 |

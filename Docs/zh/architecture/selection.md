@@ -2,15 +2,24 @@
 
 [调用链总览](index.md) · [English](../../en/architecture/selection.md)
 
-## 从发现结果到一次发送
+## 模块职责
 
-| 源码入口 | 此处拥有的状态或动作 |
+服务选择将[注册发现](registry.md)返回的地址变成**可调用的 Provider 候选**，按服务维护 Driver，并为每次调用挑选和预留执行器。注册模块只负责获取地址；[元数据](metadata.md)只保存 Java 方法定义。一个服务的候选和方法调用统计由该服务的 Driver 管理，执行器连接可以跨服务复用。
+
+## 从端点到发送
+
+`DubboDriverCollection.AddDubboServiceDriver` 按服务建立或更新 Driver，并把端点关联到可复用的执行器。`GetDubboActuatorSuite` 向客户端区分：尚无 Driver、Driver 没有端点、有候选但没有可用执行器，以及选中执行器。前两种情况可以触发[客户端](client.md)主动发现；资源不可用不代表注册中心无 Provider。
+
+[`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) 从当前候选中按协议、版本和分组过滤，再按配置的负载策略选择端点。选择与增加在途引用处于同一同步边界，防止 Provider 被移除时正在发送的调用失去所用资源。
+
+## 更新与释放
+
+Provider 变化时，Driver 用新的发现结果更新候选；明确没有 Provider 时可以清空候选。已经预留的调用仍由 [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) 包裹：发送结束后记录成功或失败及耗时，并归还预留。在途调用归还后，移除的 Provider 所用执行器才能按引用关系释放。客户端关闭时也会释放持有的 Driver 与共享执行器资源。
+
+## 源码入口
+
+| 文件 | 职责 |
 | --- | --- |
-| [`DubboDriverCollection.AddDubboServiceDriver`](../../../Clients/DubboDriverCollection.cs) | [注册发现](registry.md)把端点交来后，按服务建立或更新 Driver；注册查询结果本身不参与负载均衡。 |
-| [`DubboDriverCollection.GetDubboActuatorSuite`](../../../Clients/DubboDriverCollection.cs) | [客户端](client.md)以 `reserve: true` 请求可用执行器；结果区分无 Driver、无候选、资源不可用与已选中。 |
-| [`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) | 从当前候选中按协议、版本、分组及负载策略选端点，同时增加在途引用；选中与预留在同一同步边界内。 |
-| [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 包裹[传输](transport.md)调用；成功或失败都完成统计并归还预留，避免 Provider 刚下线时提前销毁正在使用的连接。 |
-
-Driver 是**当前可调用 Provider 候选的所有者**；元数据管理器保存 Java 签名，注册发现只返回地址。跨服务的执行器可能共享，服务自己的候选与方法统计仍由对应 Driver 维护。如果选不到执行器，客户端按结果类型决定是否发现/重试或返回失败；这不等于注册中心一定无节点。
-
-**核对：** [Driver 选择测试](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs)、[负载策略测试](../../../Tests/UnitTestForDubboNet/LoadBalancingTest.cs)、[Provider 移除时在途调用回归](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs)。策略配置在[使用说明](../../../readme_cn.md#客户端配置--configuration)。
+| [`Clients/DubboDriverCollection.cs`](../../../Clients/DubboDriverCollection.cs) | 按服务管理 Driver、交接发现结果与复用执行器。 |
+| [`Clients/DubboServiceDriver.cs`](../../../Clients/DubboServiceDriver.cs) | 维护候选、过滤与负载选择、预留及方法统计。 |
+| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | 包裹一次发送，完成统计并归还预留。 |

@@ -1,17 +1,26 @@
-# Metadata: From Definitions to Invocation Signatures
+# Metadata: From Java Definitions to Invocation Signatures
 
 [Call-path overview](index.md) · [中文](../../zh/architecture/metadata.md)
 
-## When it runs and what it hands off
+## Responsibility
 
-| Source entry | Handoff to follow |
+Metadata obtains Java interface method names, parameter types, and overload definitions, then matches caller arguments to a signature. It caches **method definitions**, not callable Provider candidates, and does not perform protocol I/O. [Registry discovery](registry.md) finds Providers, while [service selection](selection.md) maintains and selects callable candidates.
+
+## Loading definitions and resolving signatures
+
+[`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) loads and caches definitions per service. Depending on Provider version and available sources, it reads from the metadata center or a short-lived Telnet `ls -l` query; Telnet can also supplement incomplete definitions. Locating a Provider may reuse registry discovery without creating a business-call driver. The metadata center can share the registry address or use a separate one.
+
+When `QueryAsync` does not specify Java parameter types, [`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) obtains definitions, uses [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) to match arguments and overloads, and hands the resulting `DubboInvocation` with Java types back to the client for dispatch. Missing definitions or an ambiguous signature may raise `DubboMetadataException` before dispatch. With explicit types, the client can construct the invocation directly; it may still make a best-effort check for protocol requirements of same-name overloads rather than requiring every call to load metadata successfully.
+
+## Cache and subscription lifetime
+
+The manager caches definitions by service. Provider or metadata changes refresh **existing cache entries**; this cache does not become the driver's address list. The manager owns and removes its Nacos Config subscriptions on disposal, separately from the Nacos Naming subscriptions used for Provider discovery. A signature exception before dispatch is different from a `DubboRequestResult` failure returned by transport.
+
+## Source entry points
+
+| File | Responsibility |
 | --- | --- |
-| [`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) | When `QueryAsync` lacks Java parameter types, it requests service definitions, resolves a method signature, and constructs a `DubboInvocation`. Missing or ambiguous types may raise `DubboMetadataException` before dispatch. |
-| [`DubboMetadataManager.GetServiceMethodsAsync`](../../../Clients/DubboMetadataManager.cs) | Retrieves and caches method definitions. It may use [registry discovery](registry.md) to locate Providers before trying the metadata center or Telnet `ls -l`; this does not create a business-call driver. |
-| [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) / [`DubboTelnetMetadataResolver`](../../../Clients/DubboTelnetMetadataResolver.cs) | Resolve arguments against Java signatures, choose source order, and supplement partial results from Telnet. |
-| [`DubboClient.GetRequiredProtocolAsync`](../../../Clients/DubboClient.cs) | Even with caller-supplied types, a best-effort check can find same-name overloads requiring native Dubbo. Failure of the check does not make metadata mandatory for explicit calls. |
-| [`RefreshCachedServiceAsync`](../../../Clients/DubboMetadataManager.cs) | Registry events can refresh existing cached definitions; the result does not replace [selection](selection.md)'s callable Provider state. |
-
-The manager owns Java method and type definitions, not actuators, business Provider snapshots, or registry connections. The metadata center may share the registry address or have its own. The manager removes its Nacos Config subscription on disposal, separately from the Naming subscription for Providers. Follow the entry path to distinguish pre-dispatch exceptions from returned failure results rather than treating them as interchangeable.
-
-**Verify:** [metadata tests](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs), [invocation contract tests](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs). Public lookup methods and configuration are in the [user guide](../../../README.md#metadata-strategy-and-cache).
+| [`Clients/DubboMetadataManager.cs`](../../../Clients/DubboMetadataManager.cs) | Loading definitions, choosing sources, per-service caching, refresh, and Config subscriptions. |
+| [`Clients/DubboMethodMetadataResolver.cs`](../../../Clients/DubboMethodMetadataResolver.cs) | Matches caller arguments against Java signatures and overloads. |
+| [`Clients/DubboTelnetMetadataResolver.cs`](../../../Clients/DubboTelnetMetadataResolver.cs) | Parses and supplements method definitions returned by Telnet. |
+| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Constructs invocations when types need inference and checks protocol requirements for explicit calls. |

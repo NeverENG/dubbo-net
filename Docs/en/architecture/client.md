@@ -1,19 +1,27 @@
-# Client: Entry and Orchestration Boundary
+# Client: Call Entry and Orchestration
 
 [Call-path overview](index.md) · [中文](../../zh/architecture/client.md)
 
-## Follow the entry points
+## Responsibility
 
-| Source location | Question to answer |
+`DubboClient` receives `QueryAsync` calls, turns the service name, method, arguments, and options into an invocation, and coordinates [metadata](metadata.md), [registry discovery](registry.md), [service selection](selection.md), and [transport](transport.md). It decides when to hand work to each module; it does not itself own Java method definitions, implement load balancing, or perform protocol I/O.
+
+## Handoff for a call
+
+The public `QueryAsync` overloads lead to `QueryInternalAsync`. If the caller has not specified Java parameter types, the client first resolves the method signature through metadata and builds a `DubboInvocation`. With explicit types, it can build the invocation directly, although it may still make a best-effort check for overloads that require a particular protocol. A signature-resolution error occurs before dispatch.
+
+`QueryInternalAsync` asks `DubboDriverCollection` for an actuator matching the protocol requirement and reserves it for this call. With no service driver, or with a driver that has no Provider endpoints, it invokes registry discovery, creates or updates the driver when addresses are found, and selects again. If candidates exist but no actuator is available, it returns a failure rather than interpreting this as “no Provider in the registry.” After selection, the client hands the call to the actuator; `LoadBalancedInvocation` wraps dispatch and releases the reservation on completion.
+
+## Changes and shutdown
+
+Provider notifications enter through the ZooKeeper watcher or Nacos callback. An existing driver is refreshed from discovery; a metadata-only cache is refreshed for definitions. Notifications update existing state rather than issuing another business call. On ZooKeeper disconnection or session expiration, the client attempts to reconnect and rediscovers services after recovery.
+
+`Dispose` ends the client's consumer registration, removes its Nacos Naming subscriptions, and releases the metadata manager, drivers, actuators, and registry connection references. The metadata manager releases its own Nacos Config subscriptions. Underlying registry connections may be shared with other clients, so disposal releases this client's references.
+
+## Source entry points
+
+| File | Responsibility |
 | --- | --- |
-| [`DubboClient.QueryAsync`](../../../Clients/DubboClient.cs) | How do the public overloads construct a `DubboInvocation`, and when is [metadata](metadata.md) needed to infer Java types? |
-| [`QueryInternalAsync`](../../../Clients/DubboClient.cs) | How is a protocol restriction checked and a [service driver](selection.md) asked to reserve a call? When does a missing driver/candidate lead to [discovery](registry.md) and another selection, or to a failure result? |
-| [`ReflushProviderAsync` / `HandleNacosProviderChangedAsync`](../../../Clients/DubboClient.cs) | How does a Provider event update an existing driver and, when needed, cached metadata rather than replaying the business call? |
-| [`TryDoConnectRegistryTaskAsync` / `ReLoadDubboDriverCollection`](../../../Clients/DubboClient.cs) | Who attempts ZooKeeper reconnect and reloads services? Events enter through [`DubboClientZookeeperWatcher.process`](../../../Clients/DubboClientZookeeperWatcher.cs). |
-| [`Dispose`](../../../Clients/DubboClient.cs) | When are consumer registration, the metadata manager, registry references, drivers, and shared actuators released? |
-
-## Handoffs and exclusions
-
-The current client handles the entry point, discovery orchestration, reconnect, and disposal. This page describes **existing code**, not a completed decomposition. [Metadata](metadata.md) supplies Java signature definitions; [selection](selection.md) owns callable Provider state and reservations; [transport](transport.md) encodes requests. Drawing refresh and shutdown paths here does not mean their failure or concurrent-close edge cases are solved; see [#37](https://github.com/apache/dubbo-net/issues/37).
-
-**Verify:** [public API contract tests](../../../Tests/UnitTestForDubboNet/DubboClientApiTest.cs), [driver tests](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs); live connections need the [end-to-end environment](../../../Tests/EndToEndTestEnvironment/README.md). Usage examples belong in the [user guide](../../../README.md), not on this architecture page.
+| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | Public call entry, signature and protocol handoff, discovery and selection coordination, reconnect, and shutdown. |
+| [`Clients/DubboClientZookeeperWatcher.cs`](../../../Clients/DubboClientZookeeperWatcher.cs) | Passes ZooKeeper Provider and connection events to the client. |
+| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Wraps a reserved dispatch and releases its reservation on completion. |

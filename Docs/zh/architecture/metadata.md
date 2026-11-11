@@ -1,17 +1,26 @@
-# 元数据：从定义到调用签名
+# 元数据：Java 方法定义如何变成调用签名
 
 [调用链总览](index.md) · [English](../../en/architecture/metadata.md)
 
-## 何时进入、交给谁
+## 模块职责
 
-| 源码入口 | 要追踪的交接 |
+元数据模块为 Java 接口获取方法名、参数类型和重载定义，并将调用方提供的参数匹配到具体签名。它保存**方法定义的缓存**，不保存可调用 Provider 候选，也不负责协议收发；Provider 的发现和选择分别交给[注册与发现](registry.md)和[服务选择](selection.md)。
+
+## 定义获取与签名解析
+
+[`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) 按服务获取并缓存方法定义，根据 Provider 的版本和可用来源从元数据中心或短时 Telnet `ls -l` 查询，必要时用 Telnet 补全不完整的定义。定位 Provider 时可以复用注册发现，但元数据查询不会创建业务调用的 Driver。元数据中心既可与注册中心共用地址，也可单独配置。
+
+当 `QueryAsync` 未指定 Java 参数类型，[`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) 获取定义，由 [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) 匹配参数和重载，构造带 Java 类型的 `DubboInvocation` 后交给客户端发送。如果缺少可用定义或签名存在歧义，可能在发送之前抛出 `DubboMetadataException`。调用方已明确指定类型时，客户端可以直接构造调用；同名重载的协议约束仍可能被尽力检查，而不是要求每次调用都先成功读取元数据。
+
+## 缓存与订阅生命周期
+
+Manager 按服务缓存定义；Provider 或元数据变化只刷新**已有缓存项**，不会把定义缓存变成 Driver 的地址缓存。Nacos Config 的元数据订阅由 Manager 持有并在释放时移除，与 Provider 发现所用的 Nacos Naming 订阅分开。一次调用的签名异常属于发送前的错误，不等于传输后返回的 `DubboRequestResult` 失败。
+
+## 源码入口
+
+| 文件 | 职责 |
 | --- | --- |
-| [`DubboClient.CreateMetadataInvocationAsync`](../../../Clients/DubboClient.cs) | `QueryAsync` 没有得到 Java 参数类型时，请求服务定义并解析方法签名，然后构造 `DubboInvocation`；歧义或缺失可能在发送前抛出 `DubboMetadataException`。 |
-| [`DubboMetadataManager.GetServiceMethodsAsync`](../../../Clients/DubboMetadataManager.cs) | 为服务取得并缓存方法定义。可能借用[注册发现](registry.md)定位 Provider，再从元数据中心或 Telnet `ls -l` 获取定义；这一步不创建业务调用的 Driver。 |
-| [`DubboMethodMetadataResolver.Resolve`](../../../Clients/DubboMethodMetadataResolver.cs) / [`DubboTelnetMetadataResolver`](../../../Clients/DubboTelnetMetadataResolver.cs) | 分别定位实参与 Java 签名、决定来源顺序及 Telnet 结果的补全方式。 |
-| [`DubboClient.GetRequiredProtocolAsync`](../../../Clients/DubboClient.cs) | 即使签名由调用方明确指定，仍可能尽力检查同名重载是否要求原生协议；检查失败不让显式调用强制依赖元数据。 |
-| [`RefreshCachedServiceAsync`](../../../Clients/DubboMetadataManager.cs) | 注册事件只针对已缓存定义触发刷新；结果回到[客户端](client.md)，不替代[服务选择](selection.md)的 Provider 状态。 |
-
-方法与类型定义由 Manager 管理；它们不是执行器、业务 Provider 快照或注册中心连接本身。元数据中心可与注册中心共用地址，也可分开配置；Nacos Config 订阅由元数据 Manager 在关闭时移除，与 Naming Provider 订阅分开。错误何时抛出、何时转为调用失败结果，沿入口核对，不用文档假设每个异常等价。
-
-**核对：** [元数据测试](../../../Tests/UnitTestForDubboNet/DubboMetadataTest.cs)、[调用契约测试](../../../Tests/UnitTestForDubboNet/DubboMetadataContractTest.cs)。公共查询方式与配置在[使用说明](../../../readme_cn.md#元数据策略与缓存--metadata-strategy-and-cache)。
+| [`Clients/DubboMetadataManager.cs`](../../../Clients/DubboMetadataManager.cs) | 方法定义的获取、来源选择、按服务缓存、刷新和 Config 订阅。 |
+| [`Clients/DubboMethodMetadataResolver.cs`](../../../Clients/DubboMethodMetadataResolver.cs) | 用实参匹配 Java 方法签名和重载。 |
+| [`Clients/DubboTelnetMetadataResolver.cs`](../../../Clients/DubboTelnetMetadataResolver.cs) | 解析并补全 Telnet 返回的方法定义。 |
+| [`Clients/DubboClient.cs`](../../../Clients/DubboClient.cs) | 需要推断类型时构造调用，以及显式调用的协议检查。 |

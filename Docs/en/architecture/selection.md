@@ -1,16 +1,25 @@
-# Service Selection: Candidates, Reservation, Release
+# Service Selection: Candidates, Reservation, and Release
 
 [Call-path overview](index.md) · [中文](../../zh/architecture/selection.md)
 
-## From discovered endpoints to one dispatch
+## Responsibility
 
-| Source entry | State or action owned here |
+Service selection turns addresses from [registry discovery](registry.md) into **callable Provider candidates**. It maintains a driver per service, selects an actuator for each call, and reserves it. Discovery finds addresses; [metadata](metadata.md) stores Java method definitions. Each service driver owns its candidates and per-method call statistics, while actuator connections can be shared across services.
+
+## From endpoints to dispatch
+
+`DubboDriverCollection.AddDubboServiceDriver` creates or updates a service driver and associates endpoints with reusable actuators. `GetDubboActuatorSuite` distinguishes no driver, a driver with no endpoints, candidates with no available actuator, and successful selection. The first two can cause the [client](client.md) to discover Providers; unavailable actuator resources do not mean the registry has no Provider.
+
+[`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) filters current candidates by protocol, version, and group, then selects an endpoint according to the configured load-balancing strategy. Selection and incrementing the in-flight reference share a synchronization boundary, protecting a call's resources if a Provider is removed during dispatch.
+
+## Updates and release
+
+On Provider changes, the driver updates its candidates from discovery; an explicit no-Provider result can clear them. A reserved call is wrapped by [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs): after dispatch it records success or failure and elapsed time, then releases the reservation. Once in-flight calls finish, resources for a removed Provider can be released according to their references. Closing the client also releases its drivers and shared actuator resources.
+
+## Source entry points
+
+| File | Responsibility |
 | --- | --- |
-| [`DubboDriverCollection.AddDubboServiceDriver`](../../../Clients/DubboDriverCollection.cs) | After [discovery](registry.md) returns endpoints, creates or updates the service driver. Registry lookup results are not themselves load-balanced. |
-| [`DubboDriverCollection.GetDubboActuatorSuite`](../../../Clients/DubboDriverCollection.cs) | The [client](client.md) requests an actuator with `reserve: true`; outcomes distinguish no driver, no candidates, unavailable resources, and a selected suite. |
-| [`DubboServiceDriver.SelectAndReserve`](../../../Clients/DubboServiceDriver.cs) | Filters current candidates by protocol, version, group, and load-balancing mode, then increments the in-flight reference. Selection and reservation share one synchronization boundary. |
-| [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Wraps [transport](transport.md); success or failure completes statistics and releases the reservation so removal of a Provider does not dispose an in-use connection too soon. |
-
-The driver **owns callable Provider candidates**. Metadata owns Java signatures; registry discovery returns addresses. Actuators may be shared across services, while each service's candidates and method statistics remain with its driver. If no suite is selected, the client decides from the result category whether to discover/retry or return a failure; it does not always mean the registry has no node.
-
-**Verify:** [driver selection tests](../../../Tests/UnitTestForDubboNet/DubboServiceDriverTest.cs), [load-balancing tests](../../../Tests/UnitTestForDubboNet/LoadBalancingTest.cs), [in-flight removal regression](../../../Tests/UnitTestForDubboNet/ImportReviewRegressionTest.cs). Strategy configuration belongs in the [user guide](../../../README.md#configuration).
+| [`Clients/DubboDriverCollection.cs`](../../../Clients/DubboDriverCollection.cs) | Manages service drivers, hands off discovery results, and reuses actuators. |
+| [`Clients/DubboServiceDriver.cs`](../../../Clients/DubboServiceDriver.cs) | Maintains candidates, filters and load-balances them, reserves calls, and tracks per-method statistics. |
+| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Wraps a dispatch, completes statistics, and releases its reservation. |

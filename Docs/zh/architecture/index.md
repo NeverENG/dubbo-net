@@ -2,7 +2,7 @@
 
 [文档首页](../index.md) · [English](../../en/architecture/index.md) · [使用说明](../../../readme_cn.md)
 
-这张地图以 **当前代码实现**为准，介绍当前实现，不是目标架构。DubboNet 是调用 Java Provider 的消费端。下面是两条可分别阅读的路径；只有标明条件的步骤才会发生。想学习如何使用 API，请去[使用说明](../../../readme_cn.md)；协议字节在[原生](../protocols/native-dubbo.md)和[Triple](../protocols/triple.md)页面。
+DubboNet 是调用 Java Provider 的消费端。下面是两条可分别阅读的路径；只有标明条件的步骤才会发生。想学习如何使用 API，请去[使用说明](../../../readme_cn.md)；协议字节在[原生](../protocols/native-dubbo.md)和[Triple](../protocols/triple.md)页面。
 
 ## 请求路径：`QueryAsync` 到结果
 
@@ -38,11 +38,11 @@ Nacos: HandleNacosProviderChangedAsync ───────────┼─ �
 关闭: DubboClient.Dispose → 取消订阅／释放连接引用、Driver 与执行器
 ```
 
-[注册与发现](registry.md)说明通知和订阅，[客户端](client.md)说明重连与释放。这里不宣称所有事件、异常和关闭并发路径都已正确收敛；恢复刷新与空节点 watch 的待验证问题见 [#37](https://github.com/apache/dubbo-net/issues/37)。
+[注册与发现](registry.md)说明地址查询与通知，[客户端](client.md)说明重连与资源释放。
 
-## 状态归属（当前代码）
+## 状态归属
 
-| 状态 | 当前持有者 | 不等于 |
+| 状态 | 持有者 | 不等于 |
 | --- | --- | --- |
 | 可调用 Provider 候选、选择与预留 | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) 及 [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | 注册发现的查询结果缓存 |
 | Java 方法与类型定义 | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | 可调用 Provider 列表 |

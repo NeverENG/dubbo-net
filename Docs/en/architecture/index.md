@@ -2,7 +2,7 @@
 
 [Documentation home](../index.md) · [中文](../../zh/architecture/index.md) · [User guide](../../../README.md)
 
-This map describes the **current implementation**, not a proposed architecture. DubboNet is a consumer of remote Java Providers. The two paths below can be read independently; conditional steps do not run on every request. For API usage, start with the [user guide](../../../README.md); wire details belong to the [native](../protocols/native-dubbo.md) and [Triple](../protocols/triple.md) pages.
+DubboNet is a consumer of remote Java Providers. The two paths below can be read independently; conditional steps do not run on every request. For API usage, start with the [user guide](../../../README.md); wire details belong to the [native](../protocols/native-dubbo.md) and [Triple](../protocols/triple.md) pages.
 
 ## Request path: `QueryAsync` to result
 
@@ -38,11 +38,11 @@ Reconnect: StartConnecTaskAsync → TryDoConnectRegistryTaskAsync → ReLoadDubb
 Shutdown: DubboClient.Dispose → unsubscribe/release registry references, drivers, and actuators
 ```
 
-[Registry and discovery](registry.md) covers notifications and subscriptions; [Client](client.md) covers reconnect and disposal. This map does not claim that every event, failure, or concurrent shutdown is already handled; see [#37](https://github.com/apache/dubbo-net/issues/37) for pending verification of recovery refreshes and empty-node watches.
+[Registry and discovery](registry.md) covers address lookup and notifications; [Client](client.md) covers reconnect and resource release.
 
-## State ownership (current implementation)
+## State ownership
 
-| State | Current owner | Not the same as |
+| State | Owner | Not the same as |
 | --- | --- | --- |
 | Callable Provider candidates, selection, and reservation | [`DubboServiceDriver`](../../../Clients/DubboServiceDriver.cs) and [`DubboDriverCollection`](../../../Clients/DubboDriverCollection.cs) | A cache of registry lookup results |
 | Java method and type definitions | [`DubboMetadataManager`](../../../Clients/DubboMetadataManager.cs) | A list of callable Providers |

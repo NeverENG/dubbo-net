@@ -1,15 +1,30 @@
-# Transport: Actuator Inputs and Results
+# Transport: How Actuators Send and Receive
 
 [Call-path overview](index.md) · [中文](../../zh/architecture/transport.md)
 
-## Handoff after selection
+## Responsibility
 
-| Source entry | What to verify |
+Transport receives the selected actuator and a `DubboInvocation`, encodes the call for its protocol, manages connections and responses, and returns a `DubboRequestResult`. It owns **protocol I/O**. [Registry discovery](registry.md) supplies addresses; [service selection](selection.md) chooses an endpoint and maintains the reservation. Transport actuators do not own a service's candidate set or load-balancing strategy.
+
+## From selection to protocol actuator
+
+After selecting an actuator, [`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs) wraps dispatch in [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs). Actuators supporting structured calls receive `IDubboGenericInvocationActuator.SendQuery(invocation)`; the older interface receives serialized arguments and a method path. On success or failure, the wrapper completes call statistics and releases the reservation.
+
+| Protocol | Actuator work | Details |
+| --- | --- | --- |
+| `dubbo://` | [`NativeDubboActuatorSuite`](../../../DubboService/NativeDubboActuatorSuite.cs) manages TCP connections, Hessian2 request encoding, and responses. | [Native Dubbo protocol](../protocols/native-dubbo.md) |
+| `tri://` | [`TripleDubboActuatorSuite`](../../../DubboService/TripleDubboActuatorSuite.cs) handles Java Interface Unary HTTP/JSON requests, responses, deadlines, and cancellation. | [Triple protocol](../protocols/triple.md) |
+
+Normal registry discovery turns only `dubbo://` and `tri://` addresses into Provider endpoints. The driver's Telnet fallback for other schemes is not the short-lived Telnet `ls -l` used by [metadata](metadata.md) to read definitions. Pre-dispatch errors such as unresolved signatures are different from `DubboRequestResult` failures returned by an actuator.
+
+## Connections and release
+
+Actuators hold their own connections or pools and handle configured request timeouts and other I/O concerns. Service drivers may reuse actuators. A reservation protects an in-flight call until dispatch completes, and shared-resource references determine when a connection can be released. Client shutdown releases the actuator resources it holds.
+
+## Source entry points
+
+| File | Responsibility |
 | --- | --- |
-| [`DubboClient.QueryInternalAsync`](../../../Clients/DubboClient.cs) | Structured calls use `IDubboGenericInvocationActuator.SendQuery(invocation)`; legacy actuators receive serialized arguments through the older signature. [`LoadBalancedInvocation.InvokeAsync`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) wraps dispatch and releases the reservation. |
-| [`NativeDubboActuatorSuite`](../../../DubboService/NativeDubboActuatorSuite.cs) | TCP/Hessian2 requests, responses, and connections for `dubbo://`; the [native protocol page](../protocols/native-dubbo.md) covers frames and limits. |
-| [`TripleDubboActuatorSuite`](../../../DubboService/TripleDubboActuatorSuite.cs) | Java Interface Unary HTTP/JSON requests and deadlines/cancellation for `tri://`; the [Triple protocol page](../protocols/triple.md) covers the format and explicit boundaries. |
-
-Normal registry discovery accepts `dubbo://` and `tri://` Providers. Other scheme-based Telnet fallback inside the driver is **not** a normal registered candidate, nor is it the one-shot Telnet `ls -l` [metadata](metadata.md) probe. An actuator handles I/O and its own resources; it does not own the service driver's candidate set or choose load-balancing policy. Distinguish pre-dispatch signature exceptions from `DubboRequestResult` failures returned after dispatch.
-
-**Verify:** [native codec tests](../../../Tests/UnitTestForDubboNet/NativeDubboCodecTest.cs), [Triple actuator tests](../../../Tests/UnitTestForDubboNet/TripleDubboActuatorSuiteTest.cs), [transport reliability tests](../../../Tests/UnitTestForDubboNet/TripleTransportReliabilityTest.cs). [Direct actuator usage](../../../README.md#direct-actuator-usage) belongs in the user guide.
+| [`DubboService/NativeDubboActuatorSuite.cs`](../../../DubboService/NativeDubboActuatorSuite.cs) | Native Dubbo requests, responses, and connection lifetime. |
+| [`DubboService/TripleDubboActuatorSuite.cs`](../../../DubboService/TripleDubboActuatorSuite.cs) | Triple requests, responses, cancellation, and HTTP connection resources. |
+| [`Clients/LoadBalancing/LoadBalancedInvocation.cs`](../../../Clients/LoadBalancing/LoadBalancedInvocation.cs) | Statistics and reservation release around a transport call. |
