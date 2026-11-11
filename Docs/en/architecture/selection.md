@@ -10,7 +10,9 @@ Service selection turns addresses from [registry discovery](registry.md) into **
 
 `DubboDriverCollection.AddDubboServiceDriver` creates or updates a service driver and associates endpoints with reusable actuators. `GetDubboActuatorSuite` distinguishes no driver, a driver with no endpoints, candidates with no available actuator, and successful selection. The first two can cause the [client](client.md) to discover Providers; unavailable actuator resources do not mean the registry has no Provider.
 
-`DubboServiceDriver.SelectAndReserve` filters current candidates by protocol, version, and group, then selects an endpoint according to the configured load-balancing strategy. Selection and incrementing the in-flight reference share a synchronization boundary, protecting a call's resources if a Provider is removed during dispatch.
+`DubboServiceDriver.SelectAndReserve` first excludes disabled endpoints and those with nonpositive weight, then filters by protocol, service version, and group. It selects from the remainder using weighted random, smooth weighted round-robin, consistent hash, least active, shortest response, or P2C; active counts and latency come from client-side per-method call statistics.
+
+Selection and incrementing the in-flight reference share a synchronization boundary, protecting a call's resources if a Provider is removed during dispatch.
 
 ## Updates and release
 

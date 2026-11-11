@@ -10,14 +10,14 @@ Registry discovery looks up Provider addresses for a Java interface. It reads in
 
 When a business call has no service driver, `DubboClient.QueryInternalAsync` looks up Providers through `ConcurrentGetProviderEndPoints`. If discovery returns no error, it hands the endpoint list to a new driver and continues selection. The list may be empty; without a usable endpoint, no request is sent. A call with an existing driver but no endpoints also actively looks up Providers: new endpoints update the driver and trigger another selection attempt; otherwise the call fails. Having candidates but no available actuator is a selection problem, not a reason to rediscover addresses.
 
-Before reading Java method definitions, metadata may also find Providers through `GetProviderEndPointsForMetadataAsync`. This reuses discovery without creating a business-call driver. Results go to the relevant consumer rather than becoming another callable-candidate list inside registry discovery.
+Before reading Java method definitions, metadata may also find Providers through `GetProviderEndPointsForMetadataAsync`. This reuses discovery without creating a business-call driver. `ConcurrentGetProviderEndPoints` attempts to reuse an in-flight lookup task for the same service and removes the task on completion. Each lookup hands endpoints or an error to its caller rather than maintaining another callable-candidate list inside registry discovery.
 
 | Source | How addresses are found | How changes are reported |
 | --- | --- | --- |
 | ZooKeeper | Reads `dubbo://` and `tri://` children under the interface's `providers` path. It accepts only endpoints whose hosts parse as IP addresses; domain and host names are not resolved through DNS. | Installs a one-shot children watch when children exist; an event triggers discovery for the service. With no children, discovery reports no Provider, and a later business call actively retries. |
 | Nacos Naming | Queries instances by interface and group, using only healthy, enabled instances. | Registers a Naming change callback for the client and refreshes the affected service on changes. |
 
-A missing path or usable endpoint, as well as a failed query, prevents this lookup from returning addresses. If children exist but are all filtered out, ZooKeeper discovery may return an empty endpoint list without an error; a query failure is not treated as all Providers going offline. Exhausting ZooKeeper connection retries can also throw an exception.
+Discovery returns endpoints or an error; a missing path, no usable Provider, and an ordinary query failure are distinct outcomes. ZooKeeper may also return an empty list if all children are filtered out, or throw after exhausted connection retries.
 
 ## Changes and state updates
 

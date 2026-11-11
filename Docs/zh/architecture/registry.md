@@ -10,14 +10,14 @@
 
 业务调用找不到服务 Driver 时，`DubboClient.QueryInternalAsync` 通过 `ConcurrentGetProviderEndPoints` 查询 Provider；只要发现未返回错误，就把端点列表交给新 Driver 并继续选择。列表也可能为空；没有可用端点时不会发送请求。已有 Driver 但没有端点时，调用会主动重新发现：有新端点就更新 Driver 并重新选择，没有则返回失败。Driver 有候选但执行器不可用是选择阶段的问题，不属于重新发现的条件。
 
-元数据读取 Java 方法定义前，也可能通过 `GetProviderEndPointsForMetadataAsync` 查找 Provider。这条路径复用地址发现，但不会创建业务调用的 Driver。发现结果交给对应的使用方，而不是在注册模块中维护另一份可调用节点列表。
+元数据读取 Java 方法定义前，也可能通过 `GetProviderEndPointsForMetadataAsync` 查找 Provider。这条路径复用地址发现，但不会创建业务调用的 Driver。`ConcurrentGetProviderEndPoints` 尽量复用同一服务尚未完成的查询任务，完成后移除在途记录；每次发现把端点列表或错误交给调用方，不在注册模块中维护另一份可调用节点列表。
 
 | 来源 | 地址如何取得 | 变化如何通知 |
 | --- | --- | --- |
 | ZooKeeper | 读取接口 `providers` 路径下的 `dubbo://`、`tri://` 子节点；只收录 host 能解析为 IP 地址的端点，不对域名或主机名做 DNS 解析。 | 有子节点时安装一次性 children watch；事件到达后按服务重新发现。空节点时返回无 Provider，后续业务调用会主动重查。 |
 | Nacos Naming | 按接口及分组查询实例，只使用健康、已启用的实例。 | 为客户端登记 Naming 变更回调，变化时刷新对应服务。 |
 
-路径或可用端点不存在与查询失败都会使此次调用无法取得地址。子节点存在但全部被过滤时，ZooKeeper 查询也可能返回空端点列表而没有错误；查询失败不会被当成 Provider 全部下线。ZooKeeper 连接重试耗尽也可能直接抛出异常。
+查询返回端点列表或错误信息；路径不存在、没有可用 Provider 与一般查询失败是不同的结果。ZooKeeper 子节点都被过滤时也可能返回空列表，连接重试耗尽则可能抛异常。
 
 ## 变化与状态更新
 

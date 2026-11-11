@@ -6,6 +6,8 @@
 
 `DubboClient` receives `QueryAsync` calls, turns the service name, method, arguments, and options into an invocation, and coordinates [metadata](metadata.md), [registry discovery](registry.md), [service selection](selection.md), and [transport](transport.md). It decides when to hand work to each module; it does not itself own Java method definitions, implement load balancing, or perform protocol I/O.
 
+The entry points accept a service and method with arguments or a `DubboInvocation` that also carries Java types, version, group, and attachments. The client preserves those call details. Call outcomes are represented by a `DubboRequestResult` containing a success status, result, or error message; invalid arguments or signatures can still throw before dispatch.
+
 ## Handoff for a call
 
 The public `QueryAsync` overloads lead to `QueryInternalAsync`. If the caller has not specified Java parameter types, the client first resolves the method signature through metadata and builds a `DubboInvocation`. With explicit types, it can build the invocation directly, although it may still make a best-effort check for overloads that require a particular protocol. A signature-resolution error occurs before dispatch.

@@ -15,7 +15,9 @@ After selecting an actuator, `DubboClient.QueryInternalAsync` wraps dispatch in 
 | `dubbo://` | `NativeDubboActuatorSuite` manages TCP connections, Hessian2 request encoding, and responses. | [Native Dubbo protocol](../protocols/native-dubbo.md) |
 | `tri://` | `TripleDubboActuatorSuite` handles Java Interface Unary HTTP/JSON requests, responses, deadlines, and cancellation. | [Triple protocol](../protocols/triple.md) |
 
-Normal registry discovery turns only `dubbo://` and `tri://` addresses into Provider endpoints. The driver's Telnet fallback for other schemes is not the short-lived Telnet `ls -l` used by [metadata](metadata.md) to read definitions. Pre-dispatch errors such as unresolved signatures are different from `DubboRequestResult` failures returned by an actuator.
+Normal registry discovery turns only `dubbo://` and `tri://` addresses into Provider endpoints. The driver's Telnet fallback for other schemes is not the short-lived Telnet `ls -l` used by [metadata](metadata.md) to read definitions.
+
+Pre-dispatch errors such as unresolved signatures are different from `DubboRequestResult` failures returned by an actuator. Call outcomes include a success status, result or error, and request duration; actuators also retain response attachments when available.
 
 ## Connections and release
 

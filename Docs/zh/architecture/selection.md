@@ -10,7 +10,9 @@
 
 `DubboDriverCollection.AddDubboServiceDriver` 按服务建立或更新 Driver，并把端点关联到可复用的执行器。`GetDubboActuatorSuite` 向客户端区分：尚无 Driver、Driver 没有端点、有候选但没有可用执行器，以及选中执行器。前两种情况可以触发[客户端](client.md)主动发现；资源不可用不代表注册中心无 Provider。
 
-`DubboServiceDriver.SelectAndReserve` 从当前候选中按协议、版本和分组过滤，再按配置的负载策略选择端点。选择与增加在途引用处于同一同步边界，防止 Provider 被移除时正在发送的调用失去所用资源。
+`DubboServiceDriver.SelectAndReserve` 先排除禁用或权重不大于零的端点，再按协议、服务版本和分组过滤，按配置的策略从剩余候选中选择。可用策略包括加权随机、平滑加权轮询、一致性 Hash、最少活跃、最短响应和 P2C；活跃数与响应耗时来自客户端对方法调用的统计。
+
+选择与增加在途引用处于同一同步边界，防止 Provider 被移除时正在发送的调用失去所用资源。
 
 ## 更新与释放
 

@@ -15,7 +15,9 @@
 | `dubbo://` | `NativeDubboActuatorSuite` 管理 TCP 连接、Hessian2 请求编码与响应处理。 | [原生 Dubbo 协议](../protocols/native-dubbo.md) |
 | `tri://` | `TripleDubboActuatorSuite` 处理 Java Interface Unary HTTP/JSON 请求、响应及超时和取消。 | [Triple 协议](../protocols/triple.md) |
 
-正常注册发现只把 `dubbo://` 和 `tri://` 地址转为 Provider 端点。Driver 对其他 scheme 的 Telnet 回退与[元数据](metadata.md)读取定义时短时使用的 Telnet `ls -l` 不是同一条业务传输路径。签名无法确定等发送前错误与执行器返回的 `DubboRequestResult` 失败应分开理解。
+正常注册发现只把 `dubbo://` 和 `tri://` 地址转为 Provider 端点。Driver 对其他 scheme 的 Telnet 回退与[元数据](metadata.md)读取定义时短时使用的 Telnet `ls -l` 不是同一条业务传输路径。
+
+签名无法确定等发送前错误与执行器返回的 `DubboRequestResult` 失败应分开理解。调用结果包含成功状态、结果或错误及请求耗时；执行器还会保留可用的响应附件。
 
 ## 连接与释放
 
