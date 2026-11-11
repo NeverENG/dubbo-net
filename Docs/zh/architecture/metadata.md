@@ -8,7 +8,11 @@
 
 ## 定义获取与签名解析
 
-`DubboMetadataManager` 按服务获取并缓存方法定义，根据 Provider 的版本和可用来源从元数据中心或短时 Telnet `ls -l` 查询，必要时用 Telnet 补全不完整的定义。定位 Provider 时可以复用注册发现，但元数据查询不会创建业务调用的 Driver。元数据中心既可与注册中心共用地址，也可单独配置。
+`DubboMetadataManager` 按服务获取并缓存方法定义，根据 Provider 的版本和可用来源从元数据中心或短时 Telnet `ls -l` 查询，必要时用 Telnet 补全不完整的定义。定位 Provider 时可以复用注册发现，但元数据查询不会创建业务调用的 Driver。
+
+元数据中心默认复用注册中心连接；需要独立配置时，使用 `DubboClientConf.MetadataCenterAddress` 指定地址、`MetadataRootPath` 指定位置。
+
+Telnet 返回的源码式泛型参数在用于 `$invoke` 的 `parameterTypes` 前会做 Java 类型擦除，例如 `java.util.Map<String, Long>` 会转换为 `java.util.Map`。
 
 当 `QueryAsync` 未指定 Java 参数类型，`DubboClient.CreateMetadataInvocationAsync` 获取定义，由 `DubboMethodMetadataResolver.Resolve` 匹配参数和重载，构造带 Java 类型的 `DubboInvocation` 后交给客户端发送。如果定义已取得却找不到匹配方法，或签名存在歧义，可能在发送之前抛出 `DubboMetadataException`。若定义来源不可用且调用没有参数，客户端仍可使用空参数签名继续发送；这一回退不适用于无法确定参数类型的调用。调用方已明确指定类型时，客户端可以直接构造调用；同名重载的协议约束仍可能被尽力检查，而不是要求每次调用都先成功读取元数据。
 

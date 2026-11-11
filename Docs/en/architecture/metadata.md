@@ -8,7 +8,11 @@ Metadata obtains Java interface method names, parameter types, and overload defi
 
 ## Loading definitions and resolving signatures
 
-`DubboMetadataManager` loads and caches definitions per service. Depending on Provider version and available sources, it reads from the metadata center or a short-lived Telnet `ls -l` query; Telnet can also supplement incomplete definitions. Locating a Provider may reuse registry discovery without creating a business-call driver. The metadata center can share the registry address or use a separate one.
+`DubboMetadataManager` loads and caches definitions per service. Depending on Provider version and available sources, it reads from the metadata center or a short-lived Telnet `ls -l` query; Telnet can also supplement incomplete definitions. Locating a Provider may reuse registry discovery without creating a business-call driver.
+
+The metadata center reuses the registry connection by default. For a separate center, `DubboClientConf.MetadataCenterAddress` configures its address and `MetadataRootPath` its location.
+
+Source-style generic arguments in Telnet output undergo Java type erasure before use as `$invoke` `parameterTypes`; for example, `java.util.Map<String, Long>` becomes `java.util.Map`.
 
 When `QueryAsync` does not specify Java parameter types, `DubboClient.CreateMetadataInvocationAsync` obtains definitions, uses `DubboMethodMetadataResolver.Resolve` to match arguments and overloads, and hands the resulting `DubboInvocation` with Java types back to the client for dispatch. If available definitions do not contain a matching method, or the signature is ambiguous, `DubboMetadataException` may be raised before dispatch. When definitions are unavailable and the call has no arguments, the client can still dispatch with an empty parameter signature; this fallback does not apply when argument types need resolution. With explicit types, the client can construct the invocation directly; it may still make a best-effort check for protocol requirements of same-name overloads rather than requiring every call to load metadata successfully.
 
